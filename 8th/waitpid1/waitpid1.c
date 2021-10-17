@@ -1,4 +1,4 @@
-#include "/home/xiaofish/ubuntu_cpp/CSAPP/csapp.h"
+#include "/home/xiaoyu/sophomore_1st/csapp.h"
 #define N 2
 
 int main(void)
