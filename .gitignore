@@ -1,2 +1,6 @@
 .vscode/
-*.out
+!*.cpp
+!*.c
+!*.h
+!makefile                                                                                                                                               
+!README.md
