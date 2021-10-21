@@ -1,32 +1,86 @@
 #include "/home/xiaoyu/sophomore_1st/csapp.h"
 
-void echo(int connfd)
+typedef struct {
+    int maxfd;
+    fd_set read_set;
+    fd_set ready_set;
+    int nready;
+    int maxi;
+    int clientfd[FD_SETSIZE];
+    rio_t clientrio[FD_SETSIZE];
+} pool;
+
+int byte_cnt = 0; //Counts total bytes received by server.
+
+
+void check_clients(pool* p)
 {
-    size_t n;
+    int i, connfd, n;
     char buf[MAXLINE];
     rio_t rio;
 
-    Rio_readinitb(&rio, connfd);
-    while ((n = Rio_readlineb(&rio, buf, MAXLINE)) != 0) {
-        printf("server received %d bytes\n", (int)n);
-        Rio_writen(connfd, buf, n);
+    for (i = 0; (i <= p->maxi) && (p->nready > 0); ++i) {
+        connfd = p->clientfd[i];
+        rio=p->clientrio[i];
+
+        if((connfd>0)&&(FD_ISSET(connfd,&p->ready_set))){
+            p->nready--;
+            if((n=Rio_readlineb(&rio,buf,MAXLINE))!=0){
+                byte_cnt+=n;
+                printf("Server received %d (%d total) bytes on fd %d\n",n,byte_cnt,connfd);
+                Rio_writen(connfd,buf,n);
+            }
+
+            else{
+                Close(connfd);
+                FD_CLR(connfd,&p->read_set);
+                p->clientfd[i]=-1;
+            }
+        }
     }
 }
 
-void command(void)
+void add_client(int connfd, pool* p)
 {
-    char buf[MAXLINE];
-    if (!Fgets(buf, MAXLINE, stdin))
-        exit(0);
-    printf("%s", buf);
+    int i;
+    p->nready--;
+    for (i = 0; i < FD_SETSIZE; ++i) {
+        if (p->clientfd[i] < 0) {    // -1为空
+            p->clientfd[i] < connfd;
+            Rio_readinitb(&p->clientrio[i], connfd);
+
+            FD_SET(connfd, &p->read_set);
+
+            if (connfd > p->maxfd)
+                p->maxfd = connfd;
+            if (i > p->maxi)
+                p->maxi = i;
+            break;
+        }
+    }
+    if (i == FD_SETSIZE)
+        app_error("add_client error: Too many clients");
 }
+
+void init_pool(int listenfd, pool* p)
+{
+    int i;
+    p->maxi = -1;
+    for (i = 0; i < FD_SETSIZE; ++i)
+        p->clientfd[i] = -1;
+
+    p->maxfd = listenfd;
+    FD_ZERO(&p->read_set);
+    FD_SET(listenfd, &p->read_set);
+}
+
 
 int main(int argc, char** argv)
 {
     int listenfd, connfd;
     socklen_t clientlen;
     struct sockaddr_in clientaddr;
-    fd_set read_set,ready_set;
+    static pool pool;
 
     if (argc != 2) {
         fprintf(stderr, "usage: %s <port>\n", argv[0]);
@@ -34,20 +88,17 @@ int main(int argc, char** argv)
     }
 
     listenfd = Open_listenfd(argv[1]);
+    init_pool(listenfd, &pool);
 
-    FD_ZERO(&read_set);               // Clear read set
-    FD_SET(STDIN_FILENO,&read_set);   // Add stdin to read set
-    FD_SET(listenfd,&read_set);       // Add listenfd to read set
     while (1) {
-        ready_set=read_set;
-        Select(listenfd+1,&ready_set,NULL,NULL,NULL);
-        if(FD_ISSET(STDIN_FILENO,&ready_set))
-            command();
-        if(FD_ISSET(listenfd,&ready_set)){
-            clientlen=sizeof(struct sockaddr_storage);
-            connfd=Accept(listenfd,(SA*)&clientaddr,&clientlen);
-            echo(connfd);
-            Close(connfd);
+        pool.ready_set = pool.read_set;
+        pool.nready = Select(pool.maxfd + 1, &pool.ready_set, NULL, NULL, NULL);
+
+        if(FD_ISSET(listenfd,&pool.ready_set)){
+            clientlen = sizeof(struct sockaddr_storage);
+            connfd = Accept(listenfd, (SA*)&clientaddr, &clientlen);
+            add_client(connfd, &pool);
         }
+        check_clients(&pool);
     }
 }
