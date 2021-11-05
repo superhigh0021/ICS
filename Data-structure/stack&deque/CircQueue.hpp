@@ -30,7 +30,7 @@ template <typename T>
 CircQueue<T>::CircQueue()
 {
     this->elem = new T(initSize);
-    if (this->elem == NULL) {
+    if (this->elem == nullptr) {
         std::cout << "存储分配失败" << std::endl;
         exit(0);
     }
