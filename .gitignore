@@ -3,5 +3,5 @@
 !*.c
 !*.h
 !*.hpp
-!makefile                                                                                                                                               
+!makefile
 !README.md
