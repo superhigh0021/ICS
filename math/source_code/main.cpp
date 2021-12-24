@@ -104,7 +104,7 @@ int quick_pow(const int &a, int b, const int &mod)
     return answer;
 }
 
-void compute_root(const int &num)
+vector<int> compute_root(const int &num)
 {
     vector<int> result;
     int i, j;
@@ -120,27 +120,41 @@ void compute_root(const int &num)
         if (j == eur)
             result.push_back(i);
     }
-    for (auto element : result)
-        cout << element << ' ';
-    cout << endl;
+    return result;
 }
 
 int main(int argc, char **argv)
 {
-    string buf;
-    fstream File;
-
-    File.open("testcase.txt",ios::in);
-    while(File>>buf){
-        cout<<buf<<endl;
+    int buf;
+    fstream test, result;
+    int temp = 2, number;
+    //输入测试用例的最大值，然后程序会自动生成2~你想要的测试用例之间的所有数值
+    cout << "Please input your expected max_number:";
+    cin >> number;
+    test.open("testcase.txt", ios::out);
+    while (temp++ < number)
+        test << temp << endl;
+    test.close();
+    
+    test.open("testcase.txt", ios::in);
+    result.open("result.txt", ios::out);
+    //test.seekg(ios::beg);
+    while (test >> buf)
+    {
+        //每次从文件中读取一行，即一个数字，进行原根存在性判断和原根的求解
+        if (judge_exist_root(buf))
+        {
+            result << buf << " has roots!" << endl
+                   << "Here is the root:";
+            vector<int> v1 = compute_root(buf);
+            for (auto i : v1)
+                result << i << ' ';
+            result << endl
+                   << endl;
+        }
+        else
+            result << buf << " doesn't have roots!" << endl
+                   << endl;
     }
-
-    // if (judge_exist_root(num))
-    // {
-    //     cout << "it has root!" << endl;
-    //     compute_root(num);
-    // }
-    // else
-    //     cout << "it doesn't have root!" << endl;
     return 0;
 }
