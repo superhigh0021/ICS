@@ -1,6 +1,4 @@
-.vscode/
-*.zip
-*.exe
+*
 !*.cpp
 !*.c
 !*.h
