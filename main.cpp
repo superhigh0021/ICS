@@ -1,22 +1,19 @@
-#include<iostream>
+#include <iostream>
+#include <vector>
 using namespace std;
 
-struct T{
-    typedef int number;
-};
-
-template<typename T>
-struct Iter{
-    typedef typename T::number num;
-};
-
-template<typename T>
-struct Iter<T*>{
-    typedef T num;
-};
-
-int main(void){
-    T t;
-    cout<<sizeof(typename Iter<int*>::num)<<endl;
+int compute(vector<int>& nums)
+{
+    int total = nums.size() * (nums.size() + 1) / 2;
+    cout<<total<<endl;
+    int sum02=0;
+    for (auto i : nums)
+        sum02+=i;
+    return total - sum02;
+}
+int main(void)
+{
+    vector<int>nums={3,0,1};
+    cout<<compute(nums)<<endl;
     return 0;
 }
