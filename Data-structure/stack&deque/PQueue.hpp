@@ -10,11 +10,7 @@ public:
 
 public:
     LinkNode(const T& x, const int& priority)
-        : data(x)
-        , priority(priority)
-        , link(nullptr)
-    {
-    }
+        : data(x), priority(priority), link(nullptr) {}
 };
 
 template <typename T>
@@ -23,11 +19,7 @@ private:
     LinkNode<T>*front, *rear;
 
 public:
-    PQueue()
-        : front(nullptr)
-        , rear(nullptr)
-    {
-    }
+    PQueue() : front(nullptr), rear(nullptr) {}
 
     bool pqueueEmpty();
 
@@ -39,8 +31,7 @@ public:
 
     bool getRear(T& x, int& priority);
 
-    void print()
-    {
+    void print() {
         for (LinkNode<T>* s = front; s != nullptr; s = s->link)
             std::cout << s->data << ' ';
         std::cout << std::endl;
@@ -48,14 +39,12 @@ public:
 };
 
 template <typename T>
-bool PQueue<T>::pqueueEmpty()
-{
+bool PQueue<T>::pqueueEmpty() {
     return this->front == this->rear;
 }
 
 template <typename T>
-void PQueue<T>::insertPQueue(const T& x, const int& priority)
-{
+void PQueue<T>::insertPQueue(const T& x, const int& priority) {
     LinkNode<T>* s = new LinkNode<T>(x, priority);
     if (this->front == nullptr)
         this->front = this->rear = s;
@@ -86,8 +75,7 @@ void PQueue<T>::insertPQueue(const T& x, const int& priority)
 
 //删除队头元素
 template <typename T>
-bool PQueue<T>::removePQueue(T& x, int& priority)
-{
+bool PQueue<T>::removePQueue(T& x, int& priority) {
     if (this->pqueueEmpty())
         return false;
     LinkNode<T>* s = this->front;
@@ -100,8 +88,7 @@ bool PQueue<T>::removePQueue(T& x, int& priority)
 }
 
 template <typename T>
-bool PQueue<T>::getFront(T& x, int& priority)
-{
+bool PQueue<T>::getFront(T& x, int& priority) {
     if (this->pqueueEmpty())
         return false;
     x = this->front->data, priority = this->front->priority;
@@ -109,8 +96,7 @@ bool PQueue<T>::getFront(T& x, int& priority)
 }
 
 template <typename T>
-bool PQueue<T>::getRear(T& x, int& priority)
-{
+bool PQueue<T>::getRear(T& x, int& priority) {
     if (this->pqueueEmpty())
         return false;
     x = this->rear->data, priority = this->rear->priority;

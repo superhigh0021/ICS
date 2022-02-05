@@ -1,7 +1,8 @@
-*
 !*.cpp
 !*.c
 !*.h
 !*.hpp
 !makefile
 !README.md
+*.exe
+*.out
