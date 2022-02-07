@@ -1,0 +1,10 @@
+/.vscode
+!*.cpp
+!*.c
+!*.h
+!*.hpp
+!makefile
+!README.md
+!*.md
+*.exe
+*.out
