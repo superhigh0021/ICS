@@ -1,7 +1,7 @@
 #include "AndQuery.h"
 #include "NotQuery.h"
 #include "OrQuery.h"
-#include "Query.h"
+#include <Query.h>
 
 int main(void) {
     ifstream file("text.txt");
