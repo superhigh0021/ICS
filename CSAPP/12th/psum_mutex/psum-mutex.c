@@ -1,4 +1,4 @@
-#include "/home/xiaoyu/sophomore_1st/CS:APP/csapp.h"
+#include "/home/xiaoyu/sophomore_1st/CSAPP/csapp.h"
 #define MAXTHREADS 32
 
 void* sum_mutex(void* argp);

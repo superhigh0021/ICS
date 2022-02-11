@@ -1,4 +1,4 @@
-#include"/home/xiaoyu/sophomore_1st/CS:APP/csapp.h"
+#include"/home/xiaoyu/sophomore_1st/CSAPP/csapp.h"
 
 int main(void)
 {
