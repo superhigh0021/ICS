@@ -9,7 +9,7 @@ public:
             throw std::out_of_range("Bad SmallInt value");
     }
     explicit operator int()const {return val;}
-    void show(){cout<<val;}
+    void show(){cout<<val<<endl;}
 private:
     std::size_t val;
 };
