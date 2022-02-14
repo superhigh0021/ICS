@@ -87,6 +87,27 @@ C++11可以通过在相关函数的声明后跟=delete 实现删除该函数
 
 派生类对象被绑定到基类指针或者引用上  在调用析构函数时，如果不是virtual析构函数，那么派生类中的部分没有被销毁
 
-**欲实现birtual函数 对象必须携带某些信息 主要用来在运行期决定哪一个virtual函数被调用**  **这些信息通常由vptr指针指出  vptr指向一个由函数指针构成的数组，称为vtbl(virtual table)**   **每一个带有virtual函数的class都有一个相应的vtbl 当对象调用某一virtual函数 实际上取决于该对象的vptr所指向的那个vtbl**
+**欲实现virtual函数 对象必须携带某些信息 主要用来在运行期决定哪一个virtual函数被调用**  **这些信息通常由vptr指针指出  vptr指向一个由函数指针构成的数组，称为vtbl(virtual table)**   **每一个带有virtual函数的class都有一个相应的vtbl 当对象调用某一virtual函数 实际上取决于该对象的vptr所指向的那个vtbl**
 
-**如果类内包含virtual函数，其对象体积会增加
+**如果类内包含virtual函数，其对象体积会增加**
+
+# 条款8 别让异常逃离析构函数
+
+类不希望析构函数可以产生异常
+
+析构函数应该捕捉任何异常 然后吞下它们或结束程序
+
+如果需要对某个操作函数运行期间抛出的异常做出反应，那么class应该提供一个普通函数而非在析构函数中执行该操作
+
+# 条款9 绝不在构造或析构函数中调用virtual函数
+
+如果在构造函数中调用virtual函数  那么创建一个派生类对象的时候 基类构造优先于派生类构造 此时调用的virtual函数是基类的对应函数  **因为在base class构造期间 virtual函数不是virtual函数** 
+
+**在派生类对象的基类构造期间，对象的类型是base class而不是derived class**
+
+不止virtual函数会被编译器解析之base class，如果使用运行期类型信息 入dynamic-cast和typeid 也会把对象视作base class
+
+一个可行的做法是 在derived class的构造函数中 将一个static派生类对象作为参数传递给base class的构造函数  这样就避免了调用一个未初始化/未生成的对象
+
+# 条款10 令operator=返回一个reference to *this
+
