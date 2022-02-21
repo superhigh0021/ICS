@@ -4,19 +4,19 @@
 
 # 条款2 尽量以const, enum, inline替换#define
 
-## 宏定义的变量可能不会进入符号表(symbol table)
+- 宏定义的变量可能不会进入符号表(symbol table)
 
 在define之后，可能在运用该常量的过程中获得一个编译错误，这个错误也许会提到定义的结果，而不会提到那个常量的名字，这样会导致困惑，因为需要追踪那个常量就显得十分困难。
 
 const定义的**语言常量**肯定会被编译器看到，因此会进入符号表
 
-## 宏定义无法创建class专属常量
+- 宏定义无法创建class专属常量
 
 **#define 不重视作用域**
 
 一旦宏被定义，就在其后的变异过程中有效  所以#define也没有封装性
 
-## 一个属于枚举类型的数值可以充当int使用
+- 一个属于枚举类型的数值可以充当int使用
 
 ```
 #class GamePlayer{
@@ -27,7 +27,7 @@ private:
 };
 ```
 
-## 对于形如函数的宏，最好用inline函数替换#define
+- 对于形如函数的宏，最好用inline函数替换#define
 
 **现代编译器会自动inline，而不是根据编写代码者是否添加inline来判断**
 
@@ -170,4 +170,81 @@ FontHandle f2=f1;//本意是拷贝一个Font对象 但是隐式转换为FontHand
 f1和f2都管理一个FontHandle，如果f1被销毁 那么f2因此称为“虚吊的”。
 
 **对原始资源的访问可能经由显式转换或隐式转换。一般而言显式转换比较安全，但隐式转换对客户比较方便**
+
+# 条款16 成对使用new和delete时要采用相同形式
+
+delete的最大问题在于:即将被删除的内存之内究竟有多少对象?**这决定了有多少个析构函数被调用**
+
+# 条款17 以独立语句将newed对象置入智能指针
+
+- 智能指针的构造函数是explicit的,不能隐式类型转换
+
+```cpp
+//函数声明
+int priority();
+void process(std::shared_ptr<Widget>pw,int priority);
+
+process(new Widget,priority());  //无法通过编译
+process(std::shared_ptr<Widget>(new Widget),priority())//可以通过 但可能泄漏资源
+```
+
+C++编译器核算函数参数的顺序是不固定的！
+
+如果按照如下顺序：
+
+①执行 new Widget
+
+②调用priority
+
+③调用std::shared_ptr构造函数
+
+**如果对priority的调用产生异常，new Widget返回的指针将会遗失，因为尚未被置入std::shared_ptr内**
+
+---
+
+解决方法：使用分离语句构造智能指针
+
+```cpp
+std::share_ptr<Widget>pw(new Widget);
+process(pw,priority());  	//大功告成！
+```
+
+**编译器对于 “跨越语句的各项操作” 没有重新排列的自由**  只有在一条语句内部才有重排的自由度
+
+# 条款18 让接口容易被正确使用，不易被误用
+
+std::shared_ptr有一个特别好的性质：它会自动使用他的 ”每个指针专属的删除器“ ，银耳消除另一个潜在的客户错误：cross-DLL problem。
+
+这个问题发生于 对象在动态链接程序库中被new创建，却在另一个DLL内被delete销毁。**会导致运行期错误**    std::shared_ptr没有这个错误 因为它默认的删除器是来自它诞生的那个DLL的delete。
+
+---
+
+Boost库中的shared_ptr是原始值镇的两倍大，以动态分配内存作为簿记用途和 ”删除器之专属数据“ ，以virtual形式调用删除器，并在多线程程序修改引用次数时蒙受线程同步化的额外开销。(只要定义一个预处理器符号就可以关闭多线程支持)
+
+**他比原始指针大且慢，而且使用辅助动态内存**  但是降低客户使用成本倒是真的！
+
+# 条款19 设计class犹如设计type
+
+- 新的type对象如果被pass by value 会调用拷贝构造函数
+- 新的type需要什么样的转换？  如果希望允许类型T1被隐式转换为类型T2，就必须①在class T1中写一个类型转换函数operator T2 或者②在class T2中写一个non-explicit-one-argument构造函数
+
+# 条款20 宁以pass-by-reference-to-const替换pass-by-value
+
+- 以by-reference方式传递参数也可以避免对象切割的问题
+
+如果一个derived对象以by value的方式传递并被视为一个base class对象，base class的构造函数会被调用，derived class部分将被切割，只留下base class部分
+
+---
+
+- 在C++编译器底层，reference是以指针实现出来的，因此pass by reference通常意味着真正传递的是指针
+
+---
+
+以上规则不适用于内置类型，以及STL的迭代器和函数对象。对他们而言，pass by value比较适当。
+
+
+
+
+
+
 
