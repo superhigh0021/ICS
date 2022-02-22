@@ -1,3 +1,63 @@
+# PartⅠ  虚拟化
+
+## 第4章 抽象：进程
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # PartⅡ 并发
 
 **线程共享地址空间，从而能够访问相同的数据**
@@ -27,6 +87,17 @@ int pthread_create(pthread_t *thread,
            void (*start_routine)(void*),
            void *arg);
 ```
+
+---
+
+- thread-local变量
+
+``` c
+__thread int x;
+__thread char *s;
+```
+
+类似这种以__thread定义的变量   是线程本地变量  会在创建的每一个线程中都保留一个副本
 
 ### 27.2线程完成
 
@@ -406,6 +477,274 @@ void *consumer(void *arg){
     }
 }
 ```
+
+## 第31章 信号量
+
+- Dijkstra和同事发明了信号量 可以使用信号量作为锁和条件变量
+
+---
+
+### 31.1 信号量的定义
+
+- 信号量是有一个整数值的对象
+
+**信号量的初始值能够决定其行为 所以首先要初始化信号量**
+
+```c
+#include<semaphore.h>
+sem_t s;
+sem_init(s,0,1);
+```
+
+sem_init()通过第三个参数将信号量s的值初始化为1
+
+sem_init()的第二个参数为0 ，表示信号量是在同一进程的多个线程共享的
+
+---
+
+信号量初始化之后 调用：sem_wait()和sem_post()与之交互
+
+```c
+int sem_wait(sem_t *s){
+    decrement the value of semaphore s by one
+    wait if value of semaphore s is negative
+}
+
+int sem_post(sem_t *s){
+    increment the value of semaphore s by one
+    if there are one or more threads waiting,wake one
+}
+```
+
+sem_wait()要么立刻返回(调用时，信号量的值≥1)，要么会让调用线程挂起，直到之后的一个post操作。有可能多个调用线程都调用sem_wait()，因此都在队列中等待唤醒
+
+sem_post()并没有等待某些条件满足。它直接增加信号量的值，如果有等待线成，唤醒其中一个。
+
+**当信号量值为负数的时候，这个值就是等待线程的个数**
+
+### 31.2 二值信号量(锁)
+
+- 信号量的第一种用法：作为锁
+
+信号量的初值至关重要。一般为1。所以也叫二值信号量。
+
+```c
+sem_t m;
+sem_init(&m,0,1);
+
+sem_wait(&m);
+//临界区
+sem_post(&m);
+```
+
+### 31.3 信号量用作条件变量
+
+```c
+sem_t s;
+
+void *child(void *arg){
+    printf("child\n");
+    sem_post(&s);
+    return NULL;
+}
+
+int main(int argc,char**argv){
+    sem_init(&s,0,0);  //关键
+    printf("parent:begin\n");
+    pthread_t c;
+    pthread_create(c,NULL,child,NULL);
+    sem_wait(&s);
+    printf("parent:end\n");
+    return 0;
+}
+```
+
+**sem_post()会让信号量+1，即使没有wait()中的线程**
+
+### 31.4 生产者额/消费者(有界缓冲区)问题
+
+```c
+int buffer[MAX];
+int fill = 0;
+int use = 0;
+
+void put(int value){
+    buffer[fill] = value;
+    fill = (fill + 1) % MAX;
+}
+
+int get(){
+    int tmp=buffer[use];
+    use=(use + 1) % MAX;
+    return tmp;
+}
+```
+
+put()和get()函数
+
+```c
+sem_t empty;
+sem_t full;
+
+void producer(void *arg){
+    int i;
+    for(int i=0;i<loops;++i){
+        sem_wait(&empty);
+        put(i);
+        sem_post(&full);
+    }
+}
+
+void consumer(void *arg){
+    int i,tmp=0;
+    while(tmp!=-1){
+        sem_wait(&full);
+        tmp=get();
+        sem_post(&empty);
+        printf("%d\n",tmp);
+    }
+}
+
+int main(int argc,char**argv){
+    //...
+    sem_init(&empty,0,MAX);
+    sem_init(&full,0,0);
+    //...
+}
+```
+
+- 当MAX等于1，即缓冲区大小为1的时候  该模型工作正常
+
+- 当MAX大于1时，如果有多个生产者消费者，会出现竞态条件：假如两个生产者同时调用put()，T2在T1将fill+1之前执行赋值操作，那么前一个put的数据将会被覆盖
+
+---
+
+解决方案：**互斥**     利用二值信号量来加锁
+
+```c
+sem_t empty;
+sem_t full;
+sem_t mutex;
+
+void producer(void *arg){
+    int i;
+    for(int i=0;i<loops;++i){
+        sem_wait(&mutex);
+        sem_wait(&empty);
+        put(i);
+        sem_post(&full);
+        sem_post(&mutex);
+    }
+}
+
+void consumer(void *arg){
+    int i,tmp=0;
+    while(tmp!=-1){
+        sem_wait(&mutex);
+        sem_wait(&full);
+        tmp=get();
+        sem_post(&empty);
+        sem_post(&mutex);
+        printf("%d\n",tmp);
+    }
+}
+
+int main(int argc,char**argv){
+    //...
+    sem_init(&mutex,0,1);
+    sem_init(&empty,0,MAX);
+    sem_init(&full,0,0);
+    //...
+}
+```
+
+- 然而还是会有问题：**死锁**
+
+当消费者持有mutex锁时，如果缓冲区为空，那么会被full信号量挂起。但是此时它仍持有mutex。此时对生产着的调用会让mutex出现死锁。
+
+---
+
+解决方案：**缩小锁的作用域**   把mutex放到full和empty之内即可
+
+### 31.5 读者-写者锁
+
+- 读写锁：插入操作需要修改链表结构，而查找操作只需要读取该结构，只要没有插入操作，我们可以并发的执行多个查找操作
+
+- 当第一个读者获得读锁时，他也会获得写锁
+- 一单一个读者获得读锁，其他读者也可以获得这个锁。但是想要获得写锁的线程，就必须等到所有读者都结束。最后一个退出的写者，释放写锁。
+
+### 31.6 哲学家就餐问题
+
+哲学家围圆桌吃饭，只有同时获得左右手两个叉子才能吃饭
+
+Dijkstra通过让最后一个人先尝试拿右手叉子，而其他人全都尝试拿左手叉子的逻辑实现
+
+### 31.7 实现信号量
+
+- 用锁和条件变量实现信号量
+
+```c
+typedef struct _Zem_t{
+    int value;
+    pthread_cond_t cond;
+    pthread_mutex_t lock;
+}Zem_t;
+
+void Zem_init(Zem_t *s,int value){
+    s->value=value;
+    Cond_init(&s->cond);
+    Mutex_init(&s->lock);
+}
+
+void Zem_wait(Zem_t *s){
+    Mutex_lock(&s->lock);
+    while(s->val<=0)
+       	Cond_wait(&s->cond,&s->lock);
+    s->value--;
+    Mutex_unlock();
+}
+
+void Zem_post(Zem_t *s){
+    Mutex_lock(&s->lock);
+    s->value++;
+    Cond_signal(&s->cond);
+    Mutex_unlock(&s->lock);
+}
+```
+
+## 第32章 常见并发问题
+
+### 死锁缺陷
+
+预防：
+
+- 循环等待：通过控制获取锁的顺序来预防死锁
+
+通过锁的地址来强制锁的顺序：
+
+假如有这个函数：
+
+```c
+do_something(mutex_t *m1,mutex_t *m2);
+```
+
+如果一个线程调用do_something（L1,L2)而另一个线程调用do_something(L2,L1)时，就可能产生死锁
+
+根据锁的地址作为获取锁的顺序：
+
+```c
+if(m1>m2){
+    pthread_mutex_lock(m1);
+    pthread_mutex_lock(m2);
+}else {
+    pthread_mutex_lock(m2);
+    pthread_mutex_lock(m1);
+}
+```
+
+---
+
+本章没什么好说的....
 
 
 
