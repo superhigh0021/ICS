@@ -161,13 +161,15 @@ a[i]=a[j]   //潜在的自我赋值
 
 # 条款13 以对象管理资源
 
-为防止资源泄漏，使用RAII对象  它们在构造函数中获得资源并在析构函数中释放资源
+- RAII对象：
+
+​	为防止资源泄漏，使用RAII对象  它们在构造函数中获得资源并在析构函数中释放资源
 
 
 
 # 条款14 在资源管理类中小心coping行为
 
-**复制底层资源** 复制资源管理的对象 应该同时也复制其所包覆的资源   复制资源管理对象时进行的是**深拷贝**
+**复制底层资源**：复制资源管理的对象 应该同时也复制其所包覆的资源   复制资源管理对象时进行的是**深拷贝**
 
 普遍而常见的RAII行为是：阻止拷贝、运用引用计数法。 不过其他行为也都可能被实现。
 
@@ -396,9 +398,54 @@ result = 2.operator*(oneHalf);
 
 否则应该用方法B
 
+# 条款27 尽量少做转型动作
+
+- C++提供四种新式转型：
+
+const_cast<T>(expression)    
+
+dynamic_cast<T>(expression)   
+
+reinterpret_cast<T>(expression)    
+
+static_cast<T>(expression) 
 
 
 
+- const_cast:将对象的常量性移除，也是唯一有此能力的
+- dynamic_cast 主要用来执行“安全向下转型”，是唯一无法由旧式语法执行的动作。可能会耗费重大运行成本。
+- reinterpret_cast执行低级转型，实际动作取决于编译器，所以不可移植。e.g.将pointer to int 转型为一个 int
+- static_cast用来强迫隐式转换，包括将non-const转换为const，但不可以反过来转换，因为那是const_cast的事。
+
+![image-20220226193722389](E:\sophomore_1st\EffectiveC++\dependence\image-20220226193722389.png)
+
+derived class中的virtual函数首先调用父类的virtual函数，但是此处的调用并不是我们所想要的，而是*this对象的base class成分的暂时副本的onResize。
+
+解决方法是拿掉转型动作，只需要使用Window::onResize();
+
+---
+
+- dynamic_cast的许多实现版本执行速度非常慢
+
+之所以需要dynamic_cast，通常是因为需要在一个认定为derived class对象身上执行derived class操作函数，但是手上却只有一个指向base的pointer或reference。
+
+**避免连串的dynamic_cast的使用，会非常慢**
+
+# 条款28 避免返回handles指向对象内部成分
+
+ 返回一个代表对象内部数据的handle，会带来降低对象封装性的风险。他可能会导致“虽然调用const成员函数却造成对象状态被更改"。
+
+![image-20220226203240260](E:\sophomore_1st\EffectiveC++\dependence\image-20220226203240260.png)
+
+# 条款29 为”异常安全“而努力是值得的
+
+异常安全函数提供以下三个保证之一：
+
+- 基本承诺：如果异常被抛出，程序内的任何事物仍然保持在有效状态下。没有任何对象和数据结构会因此而败坏。
+- 强烈保证：如果异常被抛出，程序状态不改变。如果函数成功，就是完全成功；如果函数失败，程序就会恢复到调用函数状态之前。
+- no-throw保证：承诺绝不抛出异常。
+
+copy and swap：为你打算修改的对象做出一个副本，然后再那个副本身上修改。若有任何修改动作抛出异常，原对象仍保持为改变状态。待所有改变都成功后，再将修改过的那个副本和原对象在一个不抛出异常的操作中swap。
 
 
 
