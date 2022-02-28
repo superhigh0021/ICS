@@ -484,13 +484,84 @@ derived class的作用域嵌套于base class作用域之内
 
 # 条款34 区分接口继承和实现继承
 
+- public继承分为：函数接口继承和函数实现
+- 声明一个pure virtual函数的目的是为了让derived classes只继承函数接口
+- 声明impure virtual函数的目的，是让derived classes继承该函数的接口和缺省实现
+
+---
+
+父类的虚函数如果有定义，子类可以不重写；没有定义则要重写。
+
+父类的纯虚函数，子类必须重写，否则会让子类也成为抽象类
+
+- 声明一个non-virtual函数的目的是为了令derived classes继承函数的接口及一份强制性实现
+
+| pure virtual函数 | impure virtual函数     | non_virtual函数        |
+| ---------------- | ---------------------- | ---------------------- |
+| 只继承接口       | 继承接口和一份缺省实现 | 继承接口和一份强制实现 |
 
 
 
+# 条款35 考虑virtual函数以外的其他选择
+
+- 藉由Non-Virtual Interface手法实现Template Method模式
+
+这一设计模式思路，令客户通过public non-virtual成员函数剑姬调用private virtuial函数
+
+我们将这个non-virtual函数称为virtual函数的外覆器(wrapper)
+
+---
+
+std::function对象可以保存任何可调用物，函数指针、函数对象或成员函数指针，只要其签名式兼容于需求端。
+
+此外，这个可调用物的参数可以被隐式转换成function中定义的。
+
+![image-20220228103021416](dependence/image-20220228103021416.png)
+
+# 条款36 绝不重新定义继承而来的non-virtual函数
+
+- non-virtual函数都是静态绑定
+- virtual函数是动态绑定
+
+绝不要重新定义继承而来的non-virtual函数
+
+# 条款37 绝不重新定义继承而来的缺省参数值
+
+- virtual函数是动态绑定，而缺省参数值却是**静态绑定**
+
+![image-20220228103516845](dependence/image-20220228103516845.png)![image-20220228103523694](dependence/image-20220228103523694.png)
+
+C++这样运作的原因：运行期效率。
+
+如果缺省参数值是动态绑定，编译器就必须有某种办法在运行期为virtual函数决定适当的参数缺省值。这比在编译器决定的机制更慢且更复杂。
+
+---
+
+一种解决方案是**NVI手法**：令base class没得一个public non-virtual函数调用private virtual函数，后者可以被derived classes重新定义。而且可以在这里**让non-virtual函数指定缺省参数**，而private virtual函数负责真正的工作。
 
 
 
+# 条款38 通过复合塑模出has-a或“根据某物实现出”
 
+- 在应用域，复合意味着has-a。在实现域。复合意味着is-implemented-in-terms-of(根据某物实现出)
+
+
+
+# 条款39 明智而审慎地使用private继承
+
+- 如果classes之间的继承关系是private，编译器不会自动将一个derived class对象转换为一个base class对象。
+- 由private继承而来的所有成员，在derived class中都会变成private属性
+
+**private继承意味着只有实现部分被继承。接口部分应略去**。说明derived class根据base class实现而得。
+
+---
+
+面对**大小为零的独立(非附属)对象**，C++官方勒令默默安排一个char到空对象中。
+
+---
+
+- private继承意味着**根据某物实现出**。它通常比复合的级别低。
+- private继承可以造成empty base最优化，可以做到**“对象尺寸最小化”**
 
 
 
