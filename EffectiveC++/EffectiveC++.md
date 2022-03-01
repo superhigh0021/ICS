@@ -525,6 +525,8 @@ std::function对象可以保存任何可调用物，函数指针、函数对象�
 
 绝不要重新定义继承而来的non-virtual函数
 
+
+
 # 条款37 绝不重新定义继承而来的缺省参数值
 
 - virtual函数是动态绑定，而缺省参数值却是**静态绑定**
@@ -562,6 +564,91 @@ C++这样运作的原因：运行期效率。
 
 - private继承意味着**根据某物实现出**。它通常比复合的级别低。
 - private继承可以造成empty base最优化，可以做到**“对象尺寸最小化”**
+
+
+
+# 条款40 明智而审慎地使用多重继承
+
+- C++解析重载函数调用的规则：在看到是否有个函数可取用之前，C++首先确认这个函数对此调用是最佳匹配。找到最佳匹配后才检验其可用性。
+
+**避免菱形继承带来的两份间接基类的数据**，可以令中间的两个直接基类称为virtual base class
+
+![image-20220301082453388](dependence/image-20220301082453388.png)
+
+**IOFile直接继承InputFile和OutputFile在File中的共同成员，再继承他俩各自的新增成员**
+
+virtual继承的那些classes所产生的对象会比non-virtual大；访问virtual base classes的成员变量时，也比访问non-virtual的慢
+
+- 如果virtual继承不带有任何数据，那么将是最具使用价值的情况。
+
+
+
+# 条款41 了解隐式接口和编译期多态
+
+![image-20220301084206383](dependence/image-20220301084206383.png)
+
+此处w要满足：支持size()  normalize() swap()和拷贝等等隐式接口；
+
+凡涉及w的任何函数调用，都可能造成template具现化。该具现行为发生在编译期，**编译期多态**。
+
+---
+
+**隐式接口**：w不需要支持operator!=，因为可以：operator!=接受一个类型为X的对象和一个类型为Y的对象，w可以转换成X，someNastyWidget可以转换为Y。
+
+- 只要表达式有效，template能够在编译期成功具现化，那么就实现了编译期多态。
+
+
+
+# 条款42 了解typename的双重含义
+
+- template内出现的名称如果依赖于某个template参数，称之为**从属名称**
+- 如果从属名称在class内呈嵌套状，那么称为**嵌套从属名称**
+
+**如果解析器在template中遇到嵌套从属名称，它便假设这个名称不是一个类型，除非手动告知它**  所以需要typename关键字对其后的名称进行声明  声明它是一个类型
+
+```cpp
+template <typename C>
+void f(const C& container,	//不允许使用typename
+      typename C::iterator iter);	//必须使用typename
+```
+
+C并不是嵌套从属名称(它并非嵌套与任何"取决于template参数"的东西内)；但是C::iterator是个嵌套从属类型名称，所以必须要typename前导。
+
+- 不可以在base class lists或者member initialization list的地方使用typename修饰
+
+
+
+# 条款43 学习处理模板化基类内的名称                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+
+template继承的类可能无法调用基类的函数(拒绝调用)，因为他知道base class templates可能被特化，而那个特化版本可能不提供和一般template相同的接口。因此往往拒绝在模板化基类内寻找继承而来的名称。
+
+有三种解决方法：
+
+- 在base class函数调用钱加上"this->"
+- 使用using声明式；此处是解决编译器不进入base class作用域内查找的问题，而不是继承导致的名称遮盖
+- 明确调用baseclass<T>::function(arg...)；但是如果函数是virtual的，会导致关闭"virtual绑定行为"
+
+
+
+# 条款44 将与参数无关的代码抽离templates
+
+![image-20220301095148611](dependence/image-20220301095148611.png)
+
+![image-20220301095201527](dependence/image-20220301095201527.png)
+
+
+
+# 条款45 运用成员函数模板接受所有兼容类型
+
+
+
+
+
+
+
+
+
+
 
 
 
