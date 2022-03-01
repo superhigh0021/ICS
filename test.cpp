@@ -3,13 +3,10 @@ using namespace std;
 
 
 int main(void){
-    union{
-        char cval;
-        int ival;
-        double dval;
-    };
-    cval='c';
-    cout<<ival<<endl;
+    printf("location of code : %p\n", (void *) main); 
+    printf("location of heap : %p\n", (void *) malloc(1));
+    int i=0;
+    printf("location of stack : %p\n", (void *)&i); 
 
     return 0;
 }
