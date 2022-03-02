@@ -785,6 +785,95 @@ struct iterator_traits<IterT*>{
 
 # 条款49 了解new-handler的行为
 
+- 当operator new抛出异常反映一个未获满足的内存需求之前，他会调用客户指定的错误处理函数(new-handler)。用户必须调用set_new_handler(声明于<new>)
+
+![image-20220302145104236](dependence/image-20220302145104236.png)
+
+该处理函数的参数是个指针，指向operator new无法分配足够内存时该被调用的函数
+
+```cpp
+void outOfMem(){
+    std::cerr<<"Unable to satisfy request for memory\n";
+    std::abort();
+}
+int main(){
+    std::set_new_handler(outOfMem);
+    int *pBigDataArray = new int [10000000L];
+}
+```
+
+看晕了，缓一缓再说...
+
+
+
+# 条款50 了解new和delete的合理替换时机
+
+- C++要求所有的operator new返回的指针都有适当的对齐。
+
+令operator new返回一个得自malloc的指针是安全的。
+
+
+
+# 条款51 编写new和delete时需固守常规
+
+operator new的返回值非常pure，如果能提供客户申请的内存，就返回一个指针指向那块内存；如果不能，就调用处理函数并抛出bad_alloc异常。
+
+- operator new实际上不止一次尝试分配内存，并在每次失败后调用处理函数
+
+如果base classes遗漏virtual析构函数，operator delete可能无法正确运行，**因为传给operator delete 的size_t可能不正确**。
+
+
+
+# 条款52 写了placement new 也要写placement delete
+
+```cpp
+void* operator new(std::size_t, void* pMemory) throw();
+```
+
+这个new的用途质疑是在vector的未使用空间上创建对象
+
+---
+
+编译器在调用new之后会调用operator new和构造函数，如果operator new没有抛出异常，而在构造函数抛出异常，那么就要取消operator new的分配并调用与之对应的operator delete清理内存。**运行期系统寻找参数个数和类型都与operator new相同的operator delete“
+
+![image-20220302155030962](dependence/image-20220302155030962.png)
+
+---
+
+![image-20220302155326643](dependence/image-20220302155326643.png)![image-20220302155335520](dependence/image-20220302155335520.png)
+
+---
+
+默认情况下C++在global作用域内提供以下形式的operator new：
+
+![image-20220302155502173](dependence/image-20220302155502173.png)
+
+编写class的时候可以让成员函数调用他们。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
