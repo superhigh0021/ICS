@@ -640,6 +640,24 @@ template继承的类可能无法调用基类的函数(拒绝调用)，因为他�
 
 # 条款45 运用成员函数模板接受所有兼容类型
 
+- 真实指针(row pointer)支持隐式转换：derived class指针可以转换成base class指针；指向non-const对象的指针可以转换成指向const对象的指针
+
+但是对于我们自定义的智能指针却办不到这一点。
+
+如果针对每一个需要隐式类型转换处都对构造函数进行修改、增补，那么将无穷无尽，因为一个template可以被**无限量具现化，以致生成无限量函数**。
+
+所以我们需要**为这个类写一个构造模板(member function templates)**
+
+![image-20220302085953904](dependence/image-20220302085953904.png)
+
+:point_up_2:对任何类型T和任何类型U，这里可以根据SmartPtr<U>生成一个SmartPtr<T>——因为SmartPtr<T>的构造函数接受一个SmartPtr<U>参数。有时称为**泛化copy构造函数**。
+
+- 声明泛化copy和assignment构造函数之后，还是需要声明正常的copy构造和copy assignment操作符
+
+
+
+# 条款46 需要类型转换时请为模板定义非成员函数
+
 
 
 
