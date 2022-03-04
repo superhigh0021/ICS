@@ -119,13 +119,83 @@ Linux提供/proc文件系统，它允许用户模式进程访问内核数据结�
 
 - 内核为每个进程维持一个上下文
 
+![image-20220304214534810](dependence/image-20220304214534810.png)
 
+## 8.4 进程控制
 
+### 8.4.1 获取进程ID
 
+- 每个进程都有一个唯一的正数(非零)进程ID(PID)。
 
+```c
+#include<sys/types.h>
+#include<unistd.h>
 
+pid_t getpid(void);		//getpid函数返回进程PID
+pid_t getppid(void);	//getppid函数返回它的父进程的PID
+```
 
+Linux系统上pid_t在types.h被定义为int。
 
+### 8.4.2 创建和终止进程
+
+![image-20220304220136140](dependence/image-20220304220136140.png)
+
+```c
+#include<stdlib.h>
+
+void exit(int status);
+```
+
+exit函数以status退出状态来终止进程
+
+---
+
+```c
+#include<sys/types.h>
+#include<unistd.h>
+
+pid_t fork(void);
+```
+
+新创建的子进程几乎但不完全与父进程相同。子进程得到与父进程用户级虚拟地址空间相同的(但是独立的)**一份副本**，包括代码和数据段、堆、共享库以及用户栈。子进程还活的与父进程任何打开文件描述符相同的副本。**子进程可以读写父进程中打开的任何文件**。
+
+### 8.4.3 回收子进程
+
+- 当一个进程终止时，内核并不是立刻把它清除。而是把它保持在一种终止状态，直到被它的父进程回收。
+
+当父进程回收已终止子进程的时候，内核将子进程的退出状态传递给父进程，然后抛弃已终止的进程。
+
+一个终止但还未被回收的进程称为**僵死进程**。
+
+---
+
+![image-20220304221359456](dependence/image-20220304221359456.png)
+
+一个进程可以通过waitpid等待他的子进程终止：
+
+```c
+#include<sys/types.h>
+#include<sys/wait.h>
+
+pid_t waitpid(pid_t pid, int *startusp, int options);
+```
+
+默认情况下(当options=0时)，waitpid挂起调用进程的执行，直到它的等待集合中的一个子进程终止。此时该函数返回已终止子进程的PID。
+
+- 判定等待集合的成员
+
+等待集合的成员是由参数pid确定的：
+
+如果pid>0，那么等待集合就是一个单独的子进程，他的进程ID等于pid；
+
+如果pid=-1，那么等待集合就是由父进程所有的子进程组成的。
+
+- 修改默认行为
+
+通过将options设置为常量：WNOHANG、WUNTRACED和WCONTINUED的各种组合来修改默认行为
+
+![image-20220304223010065](dependence/image-20220304223010065.png)
 
 
 

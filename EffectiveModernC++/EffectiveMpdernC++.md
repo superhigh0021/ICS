@@ -298,6 +298,10 @@ hint:如果给float一个转换为int或double的可能性，C++总倾向于转�
 
 
 
+# 条款13 优先使用const_iterator而不是iterator
+
+- const_iterator在STL中等价于指向const的指针。
+
 
 
 
