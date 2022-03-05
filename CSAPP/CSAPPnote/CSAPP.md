@@ -172,6 +172,8 @@ pid_t fork(void);
 
 ![image-20220304221359456](dependence/image-20220304221359456.png)
 
+---
+
 一个进程可以通过waitpid等待他的子进程终止：
 
 ```c
@@ -196,6 +198,31 @@ pid_t waitpid(pid_t pid, int *startusp, int options);
 通过将options设置为常量：WNOHANG、WUNTRACED和WCONTINUED的各种组合来修改默认行为
 
 ![image-20220304223010065](dependence/image-20220304223010065.png)
+
+- 检查已回收子进程的退出状态
+
+如果`statusp`参数是非空的，那么`waipid`就会在`status`中放入导致返回的子进程的状态信息。
+
+![image-20220305143614161](dependence/image-20220305143614161.png)
+
+- 错误条件
+
+如果调用进程没有子进程，那么`waitpid`返回-1，并且设置`errno`为`ECHILD`。如果`waitpid`函数被一个信号中断，那么返回-1，设置`errno`为`EINTR`。(为了检查`ECHILD`和`EINTR`必须包含`errno.h`头文件)
+
+---
+
+`wait`函数：是`waitpid`的简单版本
+
+```c
+#include<sys/types.h>
+#include<sys/wait.h>
+
+pid_t wait(int *statusp);
+```
+
+调用`wait(&status)`等价于调用`waitpid(-1.&status,0)`。
+
+---
 
 
 

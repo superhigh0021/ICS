@@ -359,15 +359,92 @@ C++11中，`constexpr`函数的代码不能超过一行：一个`return`语句�
 
 # 条款17 理解特殊成员函数的生成
 
+- 特殊函数指C++自己生成的函数，仅在需要的时候才生成。
+
+拷贝操作和移动操作一样，如果自己声明了，编译器就不会生成。
+
+---
+
+- 两个拷贝操作是独立的：声明一个不会限制编译器生成另一个。声明一个拷贝构造函数但没有声明拷贝赋值运算符，当代码用到拷贝赋值，编译器会自动生成。反之亦然。
+- 两个移动操作并不相互独立。如果声明其中一个，编译器就不会再生成另外一个。
+
+![image-20220305133049703](dependence/image-20220305133049703.png)
+
+- 如果一个类显式声明了拷贝操作，编译器就不会生成移动操作。解释：如果声明拷贝操作，那么说明平常拷贝对象的方法不适用于该类，编译器会明白：如果逐成员拷贝对拷贝操作来说不合适，逐成员移动也可能不合适。反之亦然，所以可以通过声明移动构造来禁止编译器自动生成拷贝函数。
+
+---
+
+**Rule of Three**：如果声明了拷贝构造函数、拷贝赋值运算符，或者析构函数三者之一，你应该也声明其余两个。用户接管拷贝操作的需求几乎都是因为该类会做其他资源的管理。这也意味着(针对上面的那三个)：
+
+1. 无论哪种资源管理如果在拷贝操作内完成，也应该在另一个拷贝操作内完成。
+2. 类的析构函数也需要参与资源的管理(通常是释放)。
+
+![image-20220305134943940](dependence/image-20220305134943940.png)
+
+所以仅当下面条件成立时才会生成移动操作(当需要时)：
+
+- 类中没有拷贝操作
+- 类中没有移动操作
+- 类中没有用户定义的析构
+
+---
+
+![image-20220305140136195](dependence/image-20220305140136195.png)
 
 
 
+# 条款18 对于独占资源使用`std::unique_ptr`
+
+- 默认情况下`std::unique_ptr`大小等同于原始指针(row pointer)  **(使用默认删除器)**。
+
+`std::unique_ptr`始终拥有其所指的内容，移动一个`std::unique_ptr`将所有权从源指针转移到目的指针(源指针被设置为nullptr)**拷贝一个`std::unique_ptr`是不允许的**，因为会得到指向相同内容的两个`std::unique_ptr`，每个都认为自己拥有且应当最后销毁资源，就会**double delete**。
+
+![image-20220305141614615](dependence/image-20220305141614615.png)
+
+`std::unique_ptr`可以被设置使用**自定义删除器**。
+
+```cpp
+auto delInvmt = [](Investment* pInvestment)         //自定义删除器
+                {                                   //（lambda表达式）
+                    makeLogEntry(pInvestment);
+                    delete pInvestment; 
+                };
+
+template<typename... Ts>
+std::unique_ptr<Investment, decltype(delInvmt)>     //更改后的返回类型
+makeInvestment(Ts&&... params)
+{
+    std::unique_ptr<Investment, decltype(delInvmt)> //应返回的指针
+        pInv(nullptr, delInvmt);
+    if (/*一个Stock对象应被创建*/)
+    {
+        pInv.reset(new Stock(std::forward<Ts>(params)...));
+    }
+    else if ( /*一个Bond对象应被创建*/ )   
+    {     
+        pInv.reset(new Bond(std::forward<Ts>(params)...));   
+    }   
+    else if ( /*一个RealEstate对象应被创建*/ )   
+    {     
+        pInv.reset(new RealEstate(std::forward<Ts>(params)...));   
+    }   
+    return pInv;
+}
+```
+
+自定义删除器的一个形参类型是`Investment*`，不管是在`makeInvestment`内部创建的对象的真实类型是什么，最终在lambda表达式中作为`Investment*`对象被删除。这意味着通过基类指针删除派生类实例，基类必须有virtual析构函数。
+
+---
+
+当使用默认删除器时，可以合理假设`std::unique_ptr`对象和原始指针大小相同。当自定义删除器时，函数指针形式的删除器会使`std::unique_ptr`从一个字大小增加到两个。对于函数对象形式的删除器来说，变化的大小取决于函数对象中存储的状态是多少，**无状态函数对象(比如不捕获变量的lambda表达式)对大小没有影响**。
+
+---
+
+`std::unique_ptr`可以灵活的转化为`std::shared_ptr`，所以通常令工厂函数返回`std::unique_ptr`。
 
 
 
-
-
-
+# 条款19 对于共享资源使用`std::shared_ptr`
 
 
 
