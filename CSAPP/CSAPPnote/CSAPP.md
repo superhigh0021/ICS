@@ -187,7 +187,7 @@ pid_t waitpid(pid_t pid, int *startusp, int options);
 
 - 判定等待集合的成员
 
-等待集合的成员是由参数pid确定的：
+**等待集合的成员是由参数pid确定的**：
 
 如果pid>0，那么等待集合就是一个单独的子进程，他的进程ID等于pid；
 
@@ -222,21 +222,211 @@ pid_t wait(int *statusp);
 
 调用`wait(&status)`等价于调用`waitpid(-1.&status,0)`。
 
+### 8.4.4 让进程休眠
+
+`sleep`函数将一个进程挂起一段指定时间；`pause`函数让调用进程休眠，直到该进程收到一个信号：
+
+```c
+#include<unistd.h>
+
+unsigned int sleep(unsigned int secs);
+int pause(void);
+```
+
+如果请求的时间量到了，sleep返回0，否则返回还剩下要休眠的秒数(因为sleep函数被一个信号中断而过早返回)。
+
+### 8.4.5 加载并运行程序
+
+`execve`函数在当前进程的上下文中加载并运行一个新程序：
+
+```c
+#include<unistd.h>
+
+int execve(const char * filename, const char *argv[],const char *envp[]);
+```
+
+加载并运行可执行目标文件`filename`，带参数列表`argv`和环境变量列表`envp`，只有出现错误才会返回到调用程序。**execve从不返回**。
+
+**Hint**：参数`argv[0]`是可执行文件的名字，所以更多参数从`argv[1]`开始。
+
+![image-20220305155917924](dependence/image-20220305155917924.png)
+
+当main开始执行的时候，用户栈的组织结构：
+
+![image-20220305160244234](dependence/image-20220305160244234.png)
+
 ---
 
+`fork()`和`execve()`的区别(即进程和程序的区别)：
+
+- fork在新的子进程中运行相同的程序，新的子进程是父进程的一个复制品。
+- execve在当前进程的上下文中加载并运行新的程序。**会覆盖当前进程的地址空间**，但并没有创建新进程，而**保持了PID**，并且**继承了调用`execve`时候的所有已打开的文件描述符**。
+
+## 8.5 信号
+
+- Linux信号，允许进程和内核中断其它进程。
+
+### 8.5.1 信号术语
+
+传送一个信号到目的进程由两个步骤组成：
+
+- **发送信号**：内核通过更新目的进程上下文中的某个状态，发送一个信号给目的进程上下文。发送信号有两个二原因：
+
+1. 内核检测到一个系统事件，比如除0错误或者子进程终止。
+2. 一个进程调用了`kill`函数显式要求内核发送一个信号给目的进程。
+
+- **接收信号**：当目的进程被内核强迫以某种方式对信号做出反应时，它就**接收**了信号。进程可以忽略、终止或者执行**信号处理函数**的用户层函数捕获该信号。
+
+---
+
+一个发出而没有被接收的信号叫**待处理信号**。一种类型至多只有一个待处理信号。如果一个进程有一个类型为k的待处理信号，那么接下来发送给该进程类型为k的信号都不会排队等待，而是直接丢弃。  一个进程可以有选择地**阻塞**接收某种信号。当一种信号被阻塞时，仍可以被发送，但是产生的待处理信号不会被接收，直到进程取消对这种信号的阻塞。
+
+![image-20220305163252975](dependence/image-20220305163252975.png)
+
+### 8.5.2 发送信号
+
+Unix系统发送信号的机制都是基于**进程组**这个概念的。
+
+- 进程组
+
+`getpgrp`返回当前进程的进程组ID：
+
+```c
+#include<unistd.h>
+
+pid_t getpgrp(void);
+```
+
+默认情况下，子进程和父进程同属一个进程组。可以通过`setpgid`改变自己活着其他进程的进程组：
+
+```c
+#include<unistd.h>
+
+int setpgid(pid_t pid,pid_t pgid);
+```
+
+`setpgid`将进程`pid`的进程组改为`pgid`。如果`pid`是0，那么就使用当前进程的PID。如果`pgid`是0那么就用`pid`指定的进程的`PID`作为进程组ID。
+
+---
+
+- 用`/bin/kill`程序发送信号
+
+![image-20220305164021183](dependence/image-20220305164021183.png)
+
+---
+
+- 从键盘发送信号
+
+shell使用**作业**(jod)这一抽象概念来表示对一条命令行求值而创建的程序。在任何时刻，最多**只有一个前台作业和多个后台作业**
+
+![image-20220305164641820](dependence/image-20220305164641820.png)
+
+---
+
+- 用`kill`函数发送信号
+
+```c
+#include<sys/types.h》
+#include<signal.h>
+
+int kill(pid_t pid,int sig);
+```
+
+如果`pid`大于0，`kill`发送给信号号码`sig`给进程`pid`；
+
+如果`pid`等于0，`kill`发送信号`sig`给调用进程所在进程组中的每个进程，包括调用进程自己；
+
+如果`pid`小于0，`kill`发送信号`sig`给进程组|pid|中的每个进程。
+
+---
+
+- 用alarm函数发送信号
+
+进程可以通过调用`alarm`函数向他自己发送SIGALRM信号：
+
+```c
+#include<unistd.h>
+
+unsigned int alarm(unsigned int secs);
+```
+
+`alarm`函数安排内核在secs秒后发送一个SIGALRM信号给调用进程。
+
+### 8.5.3 接收信号
+
+![image-20220305165559459](dependence/image-20220305165559459.png)
+
+每个信号类型都有一个预定义的默认行为：
+
+- 进程终止
+- 进程终止并转储内存
+- 进程停止(挂起)直到被SIGCONT信号重启
+- 进程忽略该信号
 
 
 
+进程可以通过`signal`函数修改和信号相关联的默认行为。然而**SIGSTOP和SIGKILL的默认行为是不可修改的**。
+
+```c
+#include<signal.h>
+
+//返回值void，参数为int的函数指针的typedef
+typedef void (*sighandler_t)(int);
+sighandler_t signal(int signum,sighandler_t handler);
+```
+
+`signal`函数可以通过以下三种方式之一修改和信号signum相关的行为：
+
+- 如果handler是SIG_IGN，那么忽略类型为signum的信号
+- 如果handler是SIG_DFL，那么类型为signum的信号行为恢复为默认行为
+- 否则，handler就是用户定义的函数地址，**信号处理程序**，只要进程接受到一个类型为signum的信号就会调用这个程序。调用信号处理程序被称为**捕获信号**。执行被称为**处理信号**。
 
 
 
+信号处理程序也可以被其他信号处理程序中断：
+
+![image-20220305171513117](dependence/image-20220305171513117.png)
+
+### 8.5.4 阻塞和解除阻塞信号
+
+Linux提供阻塞信号的隐式和显式的机制：
+
+- 隐式阻塞机制。内核默认阻塞任何当前处理程序正在处理信号类型的待处理信号。
+- 显式阻塞机制。应用程序可以使用`sigprocmask`函数和它的辅助函数，明确阻塞和解除阻塞选定的信号。
+
+```c
+#include<signal.h>
 
 
+int sigprocmask(int how,const sigset_t *set,sigset_t *oldset);
 
 
+//初始化set为空集合
+int sigemptyset(sigset_t *set);
 
 
+//把每个信号都添加到set中
+int sigfillset(sigset_t *set);
 
+//把signum添加到set
+int sigaddset(sigset_t *set, int signum);
+
+//把signum从set中删除
+int sigdelset(sigset_t *set, int signum);
+
+//如果signum是set中的成员就返回1；否则返回0
+int sigismember(const sigset_t *set,int signum);
+```
+
+`sigprocmask`函数改变当前阻塞的信号集合，行为依赖于`how`：
+
+SIG_BLOCK：把set中的信号添加到blocked中(blocked=blocked |set)。
+
+SIG_UNBLOCK：从blocked中删除set中的信号(blocked=blocked &~set)。
+
+SIG_SETMASK：block=set。
+
+如果oldset非空，那么block位向量之前的值保存在oldset中。
 
 
 
