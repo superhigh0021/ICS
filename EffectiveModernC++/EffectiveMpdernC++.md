@@ -548,7 +548,220 @@ make函数也不能使用花括号初始化。
 
 
 
-# 条款22 当使用Pumpl惯用法，在实现文件中定义特殊成员函数
+# 条款22 当使用Pimpl惯用法，在实现文件中定义特殊成员函数
+
+**Pimpl**(pointer to implementation)：将类数据成员替换为一个指向包含具体实现的类的指针，并将放在主类的数据成员们移动到实现类，这些数据成员通过指针间接访问。
+
+---
+
+`std::unique_ptr`的默认删除器是一个函数，使用`delete`销毁内置于智能指针的原始指针。**但是在调用`delete`之前，通常会使默认删除器使用C++11特性`static_assert`来确保原始指针指向的类型不是一个未完成类**。
+
+所以要确保在析构之前出现实现类的完整定义。可以在析构函数后加`=default`。
+
+---
+
+**Hint**：体会分离编译。
+
+`std::shared_ptr`和`std::unique_ptr`在pImpl指针上的表现有区别的原因：他们支持自定义删除器的方式不同。
+
+- 对于`std::shared_ptr`，删除器类型不是智能指针类型的一部分，会让它生成**更大的运行时数据结构**，但是当编译器生成的特殊成员函数被使用的时候，**指向的对象不必是一个完整类型**。
+- 对于`std::unique_ptr`，删除器类型是智能指针类型的一部分，让编译器生成**更小的运行时数据机构**，但是编译器生成的特殊成员函数被调用时，**必须是一个已完成类型**。
+
+```cpp
+// widget.h
+class Widget{
+public:
+    Widget();
+    ~Widget();
+    
+    Widget(Widget&& rhs);
+    Widget& operator=(Widget&& rhs);
+    ...
+        
+private:
+    struct Impl;
+    std::unique_ptr<Impl> pImpl;
+};
+```
+
+```cpp
+//widget.cpp
+#include"widget.h"
+#include"gadget.h"
+#include<vector>
+#include<string>
+
+struct Widget::Impl{
+    std::string name;
+    std::vector<double> data;
+    Gadget g1,g2,g3;
+};
+
+Widget::Widget() = default;
+Widget::Widget(Widget&& rhs) = default;
+Widget& Widget::operator=(Widget&& rhs) = default;
+```
+
+
+
+# 条款23 理解`std::move`和`std::forward`
+
+- 形参永远是左值，即便它的类型是一个右值引用
+
+```cpp
+void f(Widget&& w);
+```
+
+**w是左值**。   因为是一个拷贝或者移动的目的地。(个人理解)
+
+对于能否判断一个表达式是否是左值：取地址。如果能就是左值；不能就是右值。
+
+---
+
+`std::move`和`std::forward`在运行时不做任何事情。它们**不产生任何可执行代码**。它们实质上是转换函数(cast)(函数模板)。`std::move`无条件将它的实参转换为右值，`std::forward`只在特定情况满足时进行转换。
+
+```cpp
+template<typename T>                            //在std命名空间
+typename remove_reference<T>::type&&
+    move(T&& param)
+{
+    using ReturnType =                          //别名声明，见条款9
+        typename remove_reference<T>::type&&;
+
+    return static_cast<ReturnType>(param);
+}
+```
+
+对一个对象使用`std::move`就是告诉编译器，这个对象很适合被移动。
+
+---
+
+移动构造函数只接收一个non-const的右值引用；拷贝构造函数的形参：**lvalue-reference-to-const**，允许被绑定到一个const右值上。
+
+**所以哪怕用了`std::move`也有可能不是使用移动，而是拷贝**。
+
+---
+
+```cpp
+void process(const Widget& lvalArg);        //处理左值
+void process(Widget&& rvalArg);             //处理右值
+
+template<typename T>                        //用以转发param到process的模板
+void logAndProcess(T&& param)
+{
+    auto now =                              //获取现在时间
+        std::chrono::system_clock::now();
+    
+    makeLogEntry("Calling 'process'", now);
+    process(std::forward<T>(param));
+}
+```
+
+两次调用：
+
+```cpp
+logAndProcess(w);               //用左值调用
+logAndProcess(std::move(w));    //用右值调用
+```
+
+
+
+![image-20220307183507163](dependence/image-20220307183507163.png)
+
+
+
+# 条款24 区分通用引用和右值引用
+
+- `T&&`可以是右值引用，也可以是左值引用。
+
+以下两种情况会出现通用引用：
+
+1.函数模板形参
+
+```cpp
+template<typename T>
+void f(T&& param);                  //param是一个通用引用
+```
+
+2.auto声明符
+
+``` cpp
+auto&& var2 = var1;                 //var2是一个通用引用
+```
+
+
+
+**这两种情况都需要类型推导**。
+
+因为通用引用是引用，所以**必须被初始化**，初始值决定了它是右值引用还是左值引用。
+
+```cpp
+template<typename T>
+void f(T&& param);              //param是一个通用引用
+
+Widget w;
+f(w);                           //传递给函数f一个左值；param的类型
+                                //将会是Widget&，也即左值引用
+
+f(std::move(w));                //传递给f一个右值；param的类型会是
+                                //Widget&&，即右值引用
+```
+
+---
+
+只有声明为`T&&`时才是通用引用，其他都不是。**哪怕是一个const修饰符，也会让它失去通用引用资格**。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
