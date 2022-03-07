@@ -446,11 +446,63 @@ makeInvestment(Ts&&... params)
 
 # 条款19 对于共享资源使用`std::shared_ptr`
 
+- `std::shared_ptr`通过**引用计数**来确保它是否是最后一个指向某种资源的指针，引用计数关联资源并跟踪有多少`std::shared_ptr`指向该资源。(如果sp1和sp2是`std::shared_ptr`并且指向不同的对象；赋值`sp1=sp2;`会使sp1指向sp2指向的对象。直接效果就是sp1引用计数减1，sp2引用计数加1)
+
+引用计数暗示性能问题：
+
+1. **`std::shared_ptr`大小是原始指针的两倍**。因为内部包含一个指向资源的原始指针，和一个指向资源的引用计数值的原始指针。(这种实现并不是标准要求的，但是大多数标准库都是这么实现的)
+2. **引用计数的内存必须动态分配**。引用对象和所指对象关联起来，但是实际上被指的对象不知道这件事情。因此它们无法存放一个引用计数值。
+3. **递增递减引用计数必须是原子性的**。
+
+如果使用移动方式构造新的`std::shared_ptr`会将原来的`std::shared_ptr`设置为null。老的`std::shared_ptr`不再指向资源，新的`std::shared_ptr`指向资源。
+
+---
+
+对于`std::unique_ptr`来说，删除器类型是智能指针类型的一部分。对于`std::shared_ptr`则不是：
+
+```cpp
+auto loggingDel = [](Widget *pw){
+    makeLogEntry(pw);
+    delete pw;
+}
+
+//删除器类型是指针类型的一部分
+std::unique_ptr<Widget,decltype(loggingDel)>upw(new Widget, loggingDel);
+//删除器类型不是指针类型的一部分
+std::shared_ptr<Widget>spw(new Widget, loggingDel);
+```
+
+因为对于`std::shared_ptr`删除器类型不属于智能指针类型，那么不同删除器类型的相同资源`std::shared_ptr`就可以放入同一个容器。
+
+指定删除器不会改变`std::shared_ptr`对象的大小，不管删除器是什么，一个`std::shared_ptr`对象都是两个指针大小。那么删除器消耗的内存在哪呢？
+
+堆！ `std::shared_ptr`对象的引用计数是一个更大的数据结构的一部分，那个数据结构是**控制块**。每个`std::shared_ptr`管理的对象都有个相应的控制块。控制块包含引用计数值和一个**自定义删除器的拷贝**。控制块可能还包含一些额外数据，比如一个次级引用计数weak count。
+
+![](dependence/image-20220306101303079.png)
+
+---
+
+当指向对象的 `std::shared_ptr`一创建，对象的控制块就建立了。
+
+- **`std::make_shared`总是创建一个控制块。**他创建一个要指向的新对象，所以可以肯定它调用时对象不存在其他控制块。
+- **当从独占指针(即`std::unique_ptr`或者`std::auto_ptr`)上构造出 `std::shared_ptr`时会创建控制块。**独占指针没有控制块。(作为构造的一部分， `std::shared_ptr`侵占独占指针所指向对象的独占权，所以独占指针被设置为nullptr)
+- **当从原始指针上构造出 `std::shared_ptr`时候会创建控制块**。如果在一个已经存在控制块的对象上创建 `std::shared_ptr`，不会创建新的控制块。因为在构造的时候可以依赖传递来的智能指针来指向控制块。
 
 
 
+所以当从原始指针上构造超过一个 `std::shared_ptr`，就会产生未定义行为。因为指向的对象有多个控制块。**多个控制块意味着多个引用计数值，意味着对象会被销毁多次**(每个引用计数一次)。
+
+---
+
+![image-20220306102421770](dependence/image-20220306102421770.png)
+
+---
+
+`std::shared_ptr`不能处理数组，因为它设计之初就是针对单个对象的。
 
 
+
+# 条款20 当`std::shared_ptr`可能悬空时使用`std::weak_ptr`
 
 
 
