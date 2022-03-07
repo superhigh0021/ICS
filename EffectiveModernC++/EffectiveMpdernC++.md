@@ -504,9 +504,51 @@ std::shared_ptr<Widget>spw(new Widget, loggingDel);
 
 # 条款20 当`std::shared_ptr`可能悬空时使用`std::weak_ptr`
 
+`std::weak_ptr`不能解引用，也不能测试是否为空值。因为它不是一个独立的智能指针，**它建立在`std::shared_ptr`之上**，但是它不会增加所指对象的引用计数。
 
 
 
+# 条款21 优先使用`std::make_unique`和`std::make_shared`而非new
+
+`make_unique`只是把它的参数完美转发到创建对象的构造函数。(`std::forward`)
+
+---
+
+```cpp
+void processWidget(std::shared_ptr<Widget> spw,int priority);
+```
+
+如果调用时采用`new`而不是`std::make_shared`，会导致潜在的资源泄露：
+
+```cpp
+processWidget(std::shared_ptr<Widget>(new Widget),computePriority());
+```
+
+在运行时，一个函数的实参必须先被计算，再调用函数。
+
+如果按照这个顺序执行：
+
+1. 执行`new Widget`
+2. 执行`computePriority`
+3. 运行`std::shared_ptr`构造函数
+
+如果在`computePriority`产生了异常，那么第一步动态分配的Widget就会泄露，它永远不会被第三部的`std::shared_ptr`所管理了。
+
+所以采用`make_shared`可以防止这个问题。
+
+---
+
+`make_shared`也比`new`效率高，因为`std::shared_ptr`指向一个控制块，其中包含引用计数和其他东西。这个控制块在`std::shared_ptr`的构造函数中分配。因此`new`需要为Widget进行一次内存分配，再为控制块进行一次内存分配。而`make_shared`只需要一次。
+
+---
+
+make函数不能自定义删除器。但是`std::shared_ptr`和`std::unique_ptr`的构造函数都支持这么做。
+
+make函数也不能使用花括号初始化。
+
+
+
+# 条款22 当使用Pumpl惯用法，在实现文件中定义特殊成员函数
 
 
 
