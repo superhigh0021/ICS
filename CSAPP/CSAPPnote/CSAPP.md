@@ -593,13 +593,33 @@ execve("a.out",NULL,NULL);
 
 ![image-20220308094955437](dependence/image-20220308094955437.png)
 
+### 9.8.4 使用`mmap`函数的用户级内存映射
 
+Linux进程可以使用`mmap`函数创建新的虚拟内存区域，将对象映射到这些区域中：
 
+```c
+#include<unistd.h>
+#include<sys/mman.h>
 
+void *mmap(void *start, size_t length, int prot, int flags, int fd, off_t offset);
+```
 
+`mmap`函数要求内核创建一个新的虚拟内存区域，最好是从地址`start`开始的一个区域，并将文件描述符`fd`指定的对象的一个连续的片映射到这个新的区域。连续的对象片大小为`length`字节，从距文件开始处偏移量为offset字节的地方开始。`start`地址仅仅是一个暗示，通常被定义为NULL
 
+![image-20220308113124045](dependence/image-20220308113124045.png)
 
+参数`prot`包含描述新映射的虚拟内存区域的访问权限位(即在相应区域结构中的vm_prot位)。
 
+- PROT_EXEC：这个区域内的页面可以被CPU执行的指令组成。
+- PROT_READ：这个区域的页面可读。
+- PROT_WRITE：这个区域内的页面可写。
+- PROT_NONE：这个区域内的页面不能被访问。
+
+参数`flags`由描述被映射对象类型的位组成。
+
+![image-20220308113737451](dependence/image-20220308113737451.png)
+
+让内核创建一个新的包含size字节的只读、私有、请求二进制零的虚拟内存区域。若调用成功，那么bufp包含新区域的地址。
 
 
 

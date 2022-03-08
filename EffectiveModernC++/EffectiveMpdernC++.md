@@ -713,7 +713,54 @@ f(std::move(w));                //传递给f一个右值；param的类型会是
 
 
 
+# 条款25 对右值引用使用`std::move`，对通用引用使用`std::forward`
 
+```cpp
+void setName(std::string&& newName){
+    name = std::move(newName);
+}
+```
+
+该版本会导致一个临时`std::string`对象被创建，setName形参绑定到这个对象，然后这个临时对象移动到该class的数据成员中。
+
+---
+
+对要拷贝返回值的右值引用形参使用`std::move`，会将拷贝构造变为移动构造：
+
+```cpp
+Matrix operator+(Matrix&& lhs, const Matrix& rhs){
+    lhs+=rhs;
+    return std::move(lhs);
+}
+```
+
+但是对于局部变量 不可以！
+
+编译器会在按值返回的函数中消除对局部对象的拷贝(或移动)，如果满足：
+
+1. 局部对象与函数返回值的类型相同。
+2. 局部对象就是要返回的东西。
+
+编译器会使用**返回值优化**(RVO)，通过在分配给函数返回值的内存中构造w来避免复制局部变量w。
+
+```cpp
+Widget makeWidget(){
+    Widget w;
+    ...
+    return w;
+}
+```
+
+
+
+# 条款26 避免在通用引用上重载
+
+```cpp
+std::string petName("Darla");
+logAndAdd(petName);                     //传递左值std::string
+logAndAdd(std::string("Persephone"));	//传递右值std::string
+logAndAdd("Patty Dog");                 //传递字符串字面值
+```
 
 
 
