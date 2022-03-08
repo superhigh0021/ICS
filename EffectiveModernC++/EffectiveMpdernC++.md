@@ -756,15 +756,80 @@ Widget makeWidget(){
 # 条款26 避免在通用引用上重载
 
 ```cpp
+std::multiset<std::string> names;           //全局数据结构
+void logAndAdd(const std::string& name)
+{
+    auto now =                              //获取当前时间
+        std::chrono::system_clock::now();
+    log(now, "logAndAdd");                  //志记信息
+    names.emplace(name);                    //把name加到全局数据结构中；
+}                                           //emplace的信息见条款42
+```
+
+考虑这三个调用：
+
+```cpp
 std::string petName("Darla");
 logAndAdd(petName);                     //传递左值std::string
 logAndAdd(std::string("Persephone"));	//传递右值std::string
 logAndAdd("Patty Dog");                 //传递字符串字面值
 ```
 
+第三种调用形参`name`绑定一个右值，但是是通过"Patty Dog"隐式创建的临时`std::string`变量。就像第二个调用中，`name`被拷贝到`names`中。
+
+可以通过重写`logAndAdd`来提升效率：
+
+```cpp
+template<typename T>
+void logAndAdd(T&& name)
+{
+    auto now = std::chrono::system_lock::now();
+    log(now, "logAndAdd");
+    names.emplace(std::forward<T>(name));
+}
+
+std::string petName("Darla");           //跟之前一样
+logAndAdd(petName);                     //跟之前一样，拷贝左值到multiset
+logAndAdd(std::string("Persephone"));	//移动右值而不是拷贝它
+logAndAdd("Patty Dog");                 //在multiset直接创建std::string
+                                        //而不是拷贝一个临时std::string
+```
+
+---
+
+如果在通用引用上重载了，那么可能调用时不会调用你的重载函数，而是由template推导出的精确匹配的通用引用的那个函数。
+
+```cpp
+class Person {
+public:
+    template<typename T>            //完美转发的构造函数
+    explicit Person(T&& n)
+    : name(std::forward<T>(n)) {}
+
+    explicit Person(int idx);       //int的构造函数
+
+    Person(const Person& rhs);      //拷贝构造函数（编译器生成）
+    Person(Person&& rhs);           //移动构造函数（编译器生成）
+    …
+};
+
+Person p("Nancy"); 
+auto cloneOfP(p);                   //从p创建新Person；这通不过编译！
+```
+
+如果以一个const对象调用构造函数，那么就可以匹配到拷贝构造函数而不是完美转发的构造函数了。
+
+![image-20220308184727434](dependence/image-20220308184727434.png)
 
 
 
+# 条款27 熟悉通用引用重载的替代方法
+
+有点神棍，看不懂...
+
+
+
+# 条款28 理解引用折叠
 
 
 
