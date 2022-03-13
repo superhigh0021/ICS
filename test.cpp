@@ -1,16 +1,19 @@
-#include<iostream>
-#include<future>
+#include <future>
+#include <iostream>
+#include <vector>
 
-int print(int n){
-    std::cout<<"thread_child"<<std::endl;
-    return n;
-}
+class String {
+public:
+    explicit String(const char* ptr){
+        std::cout<<"explicit!"<<std::endl;
+    }
 
-int main(void){
-    auto fut=std::async(std::launch::async,print,6);
-    fut.wait();
-    std::cout<<"thread_parent\n";
-    std::cout<<fut.get()<<std::endl;
+private:
+};
+
+int main(void) {
+    String s=nullptr;
+    String ss(nullptr);
 
     return 0;
 }
