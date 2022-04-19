@@ -38,7 +38,7 @@ f(rx); 	// T是const int
 
 
 
-如果expr是左值，T和ParamType都会被推到成坐直引用
+如果expr是左值，T和ParamType都会被推导为左值引用
 
 如果expr是右值，执行普通法则(第一种情况)
 
@@ -756,67 +756,753 @@ Widget makeWidget(){
 # 条款26 避免在通用引用上重载
 
 ```cpp
+std::multiset<std::string> names;           //全局数据结构
+void logAndAdd(const std::string& name)
+{
+    auto now =                              //获取当前时间
+        std::chrono::system_clock::now();
+    log(now, "logAndAdd");                  //志记信息
+    names.emplace(name);                    //把name加到全局数据结构中；
+}                                           //emplace的信息见条款42
+```
+
+考虑这三个调用：
+
+```cpp
 std::string petName("Darla");
 logAndAdd(petName);                     //传递左值std::string
 logAndAdd(std::string("Persephone"));	//传递右值std::string
 logAndAdd("Patty Dog");                 //传递字符串字面值
 ```
 
+第三种调用形参`name`绑定一个右值，但是是通过"Patty Dog"隐式创建的临时`std::string`变量。就像第二个调用中，`name`被拷贝到`names`中。
+
+可以通过重写`logAndAdd`来提升效率：
+
+```cpp
+template<typename T>
+void logAndAdd(T&& name)
+{
+    auto now = std::chrono::system_lock::now();
+    log(now, "logAndAdd");
+    names.emplace(std::forward<T>(name));
+}
+
+std::string petName("Darla");           //跟之前一样
+logAndAdd(petName);                     //跟之前一样，拷贝左值到multiset
+logAndAdd(std::string("Persephone"));	//移动右值而不是拷贝它
+logAndAdd("Patty Dog");                 //在multiset直接创建std::string
+                                        //而不是拷贝一个临时std::string
+```
+
+---
+
+如果在通用引用上重载了，那么可能调用时不会调用你的重载函数，而是由template推导出的精确匹配的通用引用的那个函数。
+
+```cpp
+class Person {
+public:
+    template<typename T>            //完美转发的构造函数
+    explicit Person(T&& n)
+    : name(std::forward<T>(n)) {}
+
+    explicit Person(int idx);       //int的构造函数
+
+    Person(const Person& rhs);      //拷贝构造函数（编译器生成）
+    Person(Person&& rhs);           //移动构造函数（编译器生成）
+    …
+};
+
+Person p("Nancy"); 
+auto cloneOfP(p);                   //从p创建新Person；这通不过编译！
+```
+
+如果以一个const对象调用构造函数，那么就可以匹配到拷贝构造函数而不是完美转发的构造函数了。
+
+![image-20220308184727434](dependence/image-20220308184727434.png)
 
 
 
+# 条款27 熟悉通用引用重载的替代方法
+
+有点神棍，看不懂...
 
 
 
+# 条款28 理解引用折叠
+
+```cpp
+template<typename T>
+void func(T&& param);
+
+Widget widgetFactory();     //返回右值的函数
+Widget w;                   //一个变量（左值）
+func(w);                    //用左值调用func；T被推导为Widget&
+func(widgetFactory());      //用又值调用func；T被推导为Widget
+```
+
+当左值实参传入时，T被推导为**左值引用**；右值被传入时，被推导为**非引用**。
+
+**然而，C++不允许引用的引用**，那么T被推导为左值引用的话，`param`就变成了`Widget& &&`，错！
+
+所以有了**引用折叠**，有四种可能的引用组合(左值的左值，右值的右值，右值的左值，左值的右值)
+
+存在两种类型的引用（左值和右值），所以有四种可能的引用组合（左值的左值，左值的右值，右值的右值，右值的左值）。如果一个上下文中允许引用的引用存在（比如，模板的实例化），引用根据规则**折叠**为单个引用：
+
+> 如果任一引用为左值引用，则结果为左值引用。否则（即，如果引用都是右值引用），结果为右值引用。
+
+---
+
+引用折叠是`std::forward`工作的关键机制。可以这样实现：
+
+```cpp
+template<typename T>                                //在std命名空间
+T&& forward(typename
+                remove_reference<T>::type& param)
+{
+    return static_cast<T&&>(param);
+}
+```
+
+C++14可以使用`remove_reference_t<T>`而且不用加`typename`了。
+
+---
+
+通用引用并不是一种新引用，它实际上是满足以下两个条件的右值引用：
+
+- 类型推导区分左值和右值。 **T类型左值被推导为T&，T类型右值被推导为T**
+
+- 发生引用折叠。
 
 
 
+# 条款29 认识移动操作的缺点
+
+C++只会在没有声明复制操作，移动操作，或析构函数的类中才会自动生成移动操作。
+
+---
+
+`std::array`是C++11的新容器。`std::array`本质上是具有STL接口的内置数组，与其他标准容器将内容存储在堆内存中不同。**存储具体数据在堆内存的容器，本身只保存了指向堆内存中容器内容的指针**。这个指针的存在使得在常数时间移动整个容器成为可能。只需要从源容器拷贝保存指向容器内容的指针到目标容器，然后将源指针置为空指针就可以了。
+
+```cpp
+std::vector<Widget> vm1;
+
+//把数据存进vw1
+…
+
+//把vw1移动到vw2。以常数时间运行。只有vw1和vw2中的指针被改变
+auto vm2 = std::move(vm1);
+```
+
+![image-20220309153854046](dependence/image-20220309153854046.png)
+
+`std::array`没有这种指针实现，数据就保存在该对象中：
+
+```cpp
+std::array<Widget, 10000> aw1;
+
+//把数据存进aw1
+…
+
+//把aw1移动到aw2。以线性时间运行。aw1中所有元素被移动到aw2
+auto aw2 = std::move(aw1);
+```
+
+![image-20220309153947990](dependence/image-20220309153947990.png)
+
+---
+
+另一方面，`std::string`提供了常数时间的移动操作和线性时间的复制操作。这听起来移动比复制快多了，但是可能不一定。许多字符串的实现采用了**小字符串优化**（*small string optimization*，SSO）。“小”字符串（比如长度小于15个字符的）存储在了`std::string`的缓冲区中，并没有存储在堆内存，移动这种存储的字符串并不必复制操作更快。
+
+**Hint**：今天才看到Cherno的一条弹幕说的SSO
 
 
 
+# 条款30 熟悉完美转发失败的情况
+
+对于通常的转发来说，我们希望处理**引用形参**，而不是**值传递形参和指针形参**。
+
+完美转发模板：
+
+```cpp
+template<typename T>
+void fwd(T&& param)             //接受任何实参
+{
+    f(std::forward<T>(param));  //转发给f
+}
+```
+
+---
+
+如果`f`使用某特定实参会执行某个操作，但是`fwd`使用相同的实参会执行不同的操作，完美转发就会失败。
 
 
 
+> 花括号初始化器
+
+假设`f`这样定义：
+
+```cpp
+void f(const std::vector<int>& v);
+f({ 1, 2, 3 });         //可以，“{1, 2, 3}”隐式转换为std::vector<int>
+fwd({ 1, 2, 3 });       //错误！不能编译
+```
+
+在对`f`的**直接**调用上，编译器会观察传入的实参并和形参比较，看看是否匹配，必要时执行隐式转换使得调用成功。此处会生成一个临时`std::vector<int>`对象。
+
+当通过函数模板`fwd`**间接**调用`f`时，编译器不再把传入给fwd的实参和`f`声明中的形参类型作比较，而是**推导**传入给`fwd`的实参类型。此处由于模板的规则：**模板类型推导无法推导出列表初始化**，所以直接无法编译了。
 
 
 
+> 0或者NULL作为空指针
+
+[Item8](https://github.com/kelthuzadx/EffectiveModernCppChinese/blob/master/3.MovingToModernCpp/item8.md)说明当你试图传递`0`或者`NULL`作为空指针给模板时，类型推导会出错，会把传来的实参推导为一个整型类型（典型情况为`int`）而不是指针类型。结果就是不管是`0`还是`NULL`都不能作为空指针被完美转发。解决方法非常简单，传一个`nullptr`而不是`0`或者`NULL`。
 
 
 
+> 仅有声明的整形`static const`数据成员
+
+**在二进制底层代码中，指针和引用是一样的。在这个水平上，引用是可以自动接引用的指针**。
+
+为了使用完美转发，需要为整形`static const`数据成员提供一个定义：
+
+```cpp
+const std::size_t Widget::MinVals;  //在Widget的.cpp文件
+```
+
+[参考网页]: https://www.cnblogs.com/stevenshen123/p/11555758.html#:~:text=%E5%A6%82%E6%9E%9C%E4%B8%80%E4%B8%AA%E7%B1%BB%E5%86%85%E6%88%90%E5%91%98%E5%8F%98%E9%87%8F%E6%98%AFstatic%E7%9A%84%EF%BC%8C%E4%B8%94%E9%9C%80%E8%A6%81%E5%B0%86%E4%B9%8B%E8%AE%BE%E5%AE%9A%E4%B8%BA%E5%B8%B8%E9%87%8F,%28const%29%EF%BC%8C%E9%82%A3%E4%B9%88%E8%BF%99%E4%B8%AA%E5%8F%98%E9%87%8F%E5%A3%B0%E6%98%8E%E4%B8%8E%E5%88%9D%E5%A7%8B%E5%8C%96%E5%9D%87%E5%8F%AF%E5%86%99%E5%9C%A8%E5%A4%B4%E6%96%87%E4%BB%B6%E5%86%85%E3%80%82
+
+![image-20220309162131999](dependence/image-20220309162131999.png)
+
+![image-20220309162147176](dependence/image-20220309162147176.png)
+
+此处需要的情况是第一个:point_up_2:。
 
 
 
+> 重载函数的名称和模板名称
+
+```cpp
+void f(int (*pf)(int));             //pf = “process function”
+
+int processVal(int value);
+int processVal(int value, int priority);
+
+f(processVal);                      //可以
+fwd(processVal);                    //错误！哪个processVal？
+```
+
+可以创造一个与`f`相同形参类型的函数指针，然后**引导**选择正确的版本：
+
+```cpp
+using ProcessFuncType =                         //写个类型定义；见条款9
+    int (*)(int);
+
+ProcessFuncType processValPtr = processVal;     //指定所需的processVal签名
+
+fwd(processValPtr);                             //可以
+fwd(static_cast<ProcessFuncType>(workOnVal));   //也可以
+```
 
 
 
+> 位域
+
+感觉不堪大用。
 
 
 
+# Lambda表达式
+
+- lambda表达式：
+
+```cpp
+std::find_if(container.begin(), container.end(),
+             [](int val){ return 0 < val && val < 10; });   //译者注：本行高亮
+```
+
+- 闭包：是lambda创建的运行时对象。依赖捕获模式，闭包持有背部或数据的副本或者引用。在上面的`std::find_if`调用中，闭包事作为第三个实参在**运行时**传递给`std::find_if`对象。
+- 闭包类：是从中实例化闭包的类。每个lambda都会使编译器生成唯一的闭包类。*lambda*中的语句成为其闭包类的成员函数中的可执行指令。
+
+闭包通常可以靠诶，所以可能有多个闭包对应于一个lambda
 
 
 
+# 条款31 避免使用默认捕获模式
+
+> 按引用捕获会导致闭包中包含对某个局部变量或者形参的引用，变量或形参只在定义lambda的作用域中可见
+
+如果lambda创建的闭包生命周期长过局部变量或形参的生命周期，那么闭包中的引用将变成**悬空引用**。
+
+```cpp
+using FilterContainer =                     //“using”参见条款9，
+	std::vector<std::function<bool(int)>>;  //std::function参见条款2
+
+FilterContainer filters;                    //过滤函数
+
+void addDivisorFilter()
+{
+    auto calc1 = computeSomeValue1();
+    auto calc2 = computeSomeValue2();
+
+    auto divisor = computeDivisor(calc1, calc2);
+
+    filters.emplace_back(                               //危险！对divisor的引用
+        [&](int value) { return value % divisor == 0; } //将会悬空！
+    );
+}
+```
+
+lambda对局部变量`divisor`进行引用，但是该变量的生命周期会在函数返回时结束。
 
 
 
+> 使用拷贝捕获，但如果遇到指针。并不能避免lambda外对这个指针的`delete`，导致副本指针变成悬空指针
+
+---
+
+捕获只能应用于`lambda`被创建的时候所在作用域里的`non-static`局部变量(包括形参)。
+
+```cpp
+class Widget {
+public:
+    …                       //构造函数等
+    void addFilter() const; //向filters添加条目
+private:
+    int divisor;            //在Widget的过滤器使用
+};
+
+void Widget::addFilter() const
+{
+    filters.emplace_back(
+        [=](int value) { return value % divisor == 0; }
+    );
+}	
+```
+
+这里没有捕获到`divisor`，而是一个**this指针**，在任何Widget成员函数中，对成员变量的访问都会隐式地使用this->val。
 
 
 
+在C++14中一个更好的捕获成员变量的方式是使用通用的lambda捕获：
+
+```cpp
+void Widget::addFilter() const
+{
+    filters.emplace_back(                   //C++14：
+        [divisor = divisor](int value)      //拷贝divisor到闭包
+        { return value % divisor == 0; }	//使用这个副本
+    );
+}
+```
 
 
 
+使用默认的按值捕获，它们预示了相关的闭包是独立的并且不受外部数据变化的影响。
+
+> 静态存储生命周期对象(static)也可以在lambda中使用，但是不能被捕获，而是直接使用。
 
 
 
+# 条款32 使用初始化捕获来移动对象到闭包中
+
+C++11不支持移动对象到闭包中，但是C++14支持。(**初始化捕获**)
+
+使用初始化捕获可以指定：
+
+- 从lambda生成的闭包类中的数据成员名称
+- 初始化该成员的表达式
+
+```cpp
+class Widget {                          //一些有用的类型
+public:
+    …
+    bool isValidated() const;
+    bool isProcessed() const;
+    bool isArchived() const;
+private:
+    …
+};
+
+auto pw = std::make_unique<Widget>();   //创建Widget；使用std::make_unique
+                                        //的有关信息参见条款21
+
+…                                       //设置*pw
+
+auto func = [pw = std::move(pw)]        //使用std::move(pw)初始化闭包数据成员
+            { return pw->isValidated()
+                     && pw->isArchived(); };
+```
+
+捕获部分的表达式`pw = std::move(pw)`，等号左侧的作用域是闭包类，右侧作用域和lambda定义所在的定义域相同。
+
+---
+
+如果在C++11中没有**初始化捕获**，可以使用`std::bind`，而且将捕获转变为参数：
+
+```cpp
+auto func = std::bind(
+                [](const std::unique_ptr<Widget>& pw)
+                { return pw->isValidated()
+                         && pw->isArchived(); },
+                std::make_unique<Widget>()
+            );
+```
 
 
 
+# 条款33 对`auto&&`形参使用`decltype`以`std::forward`它们
+
+在**泛型lambda中**如果碰到类似：
+
+```cpp
+auto f = [](auto&& x)
+         { return func(normalize(std::forward<???>(x))); };
+```
+
+`forward`后面的尖括号中应该填什么？   因为lambda没有模板，所以没有不能填诸如T的类型。
+
+传递给通用引用的是左值，形参会变为左值引用；右值，会变为右值引用。所以可以通过使用`decltype`来检查传入实参是左值还是右值。
+
+因此，lambda的完美转发可以写成：
+
+```cpp
+auto f =
+    [](auto&& param)
+    {
+        return
+            func(normalize(std::forward<decltype(param)>(param)));
+    };
+```
 
 
 
+# 条款34 考虑lambda而非`std::bind`
+
+略......
 
 
 
+# 条款35 优先选用基于任务而非基于线程的程序设计
+
+如果开发者想异步执行`doAsyncWork`函数，通常有两种方式：
+
+- 通过创建`std::thread`执行，**基于线程**：
+
+```cpp
+int doAsyncWork();
+
+std::thread t(doAsyncWork);
+```
+
+- 将`doAsyncWork`传递给std::async，**基于任务**：
+
+```cpp
+auto fut = std::async(doAsyncWork);  //fut是一个future类型的变量
+```
+
+这种方式中，传递给`std::async`的函数对象被称为一个**任务**。
 
 
 
+基于任务的方法通常比基于线程的方法更优，原因之一上面的代码已经表明，基于任务的方法代码量更少。我们假设调用`doAsyncWork`的代码对于其提供的返回值是有需求的。基于线程的方法对此无能为力，而基于任务的方法就简单了，因为`std::async`返回的*future*提供了`get`函数（从而可以获取返回值）。如果`doAsycnWork`发生了异常，`get`函数就显得更为重要，因为`get`函数可以提供抛出异常的访问，而基于线程的方法，如果`doAsyncWork`抛出了异常，程序会直接终止（通过调用`std::terminate`）。
 
+
+
+C++的thread有三种含义：
+
+- **硬件线程**（hardware threads）是真实执行计算的线程。现代计算机体系结构为每个CPU核心提供一个或者多个硬件线程。
+- **软件线程**（software threads）（也被称为系统线程（OS threads、system threads））是操作系统（假设有一个操作系统。有些嵌入式系统没有。）管理的在硬件线程上执行的线程。通常可以存在比硬件线程更多数量的软件线程，因为当软件线程被阻塞的时候（比如 I/O、同步锁或者条件变量），操作系统可以调度其他未阻塞的软件线程执行提供吞吐量。
+- **`std::thread`** 是C++执行过程的对象，并作为软件线程的句柄（*handle*）。有些`std::thread`对象代表“空”句柄，即没有对应软件线程，因为它们处在默认构造状态（即没有函数要执行）；有些被移动走（移动到的`std::thread`就作为这个软件线程的句柄）；有些被`join`（它们要运行的函数已经运行完）；有些被`detach`（它们和对应的软件线程之间的连接关系被打断）。
+
+
+
+如果试图创建大于系统支持的线程数量，会抛出`std::system_error`异常。
+
+
+
+即使没有超出软件线程的限额，仍然可能会遇到**资源超额**（*oversubscription*）的麻烦。这是一种当前准备运行的（即未阻塞的）软件线程大于硬件线程的数量的情况。情况发生时，线程调度器（操作系统的典型部分）会将软件线程时间切片，分配到硬件上。当一个软件线程的时间片执行结束，会让给另一个软件线程，此时发生上下文切换。软件线程的上下文切换会增加系统的软件线程管理开销，当软件线程安排到与上次时间片运行时不同的硬件线程上，这个开销会更高。这种情况下，（1）CPU缓存对这个软件线程很冷淡（即几乎没有什么数据，也没有有用的操作指南）；（2）“新”软件线程的缓存数据会“污染”“旧”线程的数据，旧线程之前运行在这个核心上，而且还有可能再次在这里运行。
+
+
+
+```cpp
+auto fut = std::async(doAsyncWork);
+```
+
+这种调用方式将线程管理交给了标准库。它使用默认启动策略，允许通过调度器将特定函数运行在**等待此函数结果的线程上**(即在对fut调用get或者wait的线程上)。
+
+
+
+![image-20220311092921683](dependence/image-20220311092921683.png)
+
+
+
+# 条款36 如果有异步的必要请指定`std::launch::async`
+
+`std::launch`有两种启动策略，都通过`std::launch`这个限域enum的一个枚举名来表示。
+
+- **`std::launch::async`启动策略**意味着`f`必须异步执行，即在不同的线程。
+- **`std::launch::deferred`启动策略**意味着`f`仅当在`std::async`返回的*future*上调用`get`或者`wait`时才执行。这表示`f`**推迟**到存在这样的调用时才执行（译者注：异步与并发是两个不同概念，这里侧重于惰性求值）。当`get`或`wait`被调用，`f`会同步执行，即调用方被阻塞，直到`f`运行结束。如果`get`和`wait`都没有被调用，`f`将不会被执行。（这是个简化说法。关键点不是要在其上调用`get`或`wait`的那个*future*，而是*future*引用的那个共享状态。（[Item38](https://github.com/kelthuzadx/EffectiveModernCppChinese/blob/master/7.TheConcurrencyAPI/item38.md)讨论了*future*与共享状态的关系。）因为`std::future`支持移动，也可以用来构造`std::shared_future`，并且因为`std::shared_future`可以被拷贝，对共享状态——对`f`传到的那个`std::async`进行调用产生的——进行引用的*future*对象，有可能与`std::async`返回的那个*future*对象不同。这非常绕口，所以经常回避这个事实，简称为在`std::async`返回的*future*上调用`get`或`wait`。）
+
+
+
+如果不显式指定策略的话，默认的启动策略并不是上述的任意一个，而是|的关系
+
+```cpp
+auto fut = std::async(f);   //使用默认启动策略运行f
+```
+
+- **无法预测`f`是否会与`t`并发运行**，因为`f`可能被安排延迟运行。
+- **无法预测`f`是否会在与某线程相异的另一线程上执行，这个某线程在`fut`上调用`get`或`wait`**。如果对`fut`调用函数的线程是`t`，含义就是无法预测`f`是否在异于`t`的另一线程上执行。
+- **无法预测`f`是否执行**，因为不能确保在程序每条路径上，都会不会在`fut`上调用`get`或者`wait`。
+
+
+
+默认启动策略的调度灵活性导致使用`thread_local`变量比较麻烦，如果`f`读取了线程本地存储，不能预测到哪个线程的变量被访问：
+
+```cpp
+auto fut = std::async(f);   //f的TLS可能是为单独的线程建的，
+                            //也可能是为在fut上调用get或者wait的线程建的
+```
+
+
+
+![image-20220311100524752](dependence/image-20220311100524752.png)
+
+
+
+# 条款37 使`std::thread`在所有路径最后都不可结合
+
+每个`std::thread`对象处于两个状态之一：**可结合的**（*joinable*）或者**不可结合的**（*unjoinable*）。
+
+可结合状态的`std::thread`对应于正在运行或者可能要运行的异步执行线程。
+
+不可结合的`std::thread`对象包括：
+
+- **默认构造的`std::thread`s**。这种`std::thread`没有函数执行，因此没有对应到底层执行线程上。
+- **已经被移动走的`std::thread`对象**。移动的结果就是一个`std::thread`原来对应的执行线程现在对应于另一个`std::thread`。
+- **已经被`join`的`std::thread`** 。在`join`之后，`std::thread`不再对应于已经运行完了的执行线程。
+- **已经被`detach`的`std::thread`** 。`detach`断开了`std::thread`对象与执行线程之间的连接。
+
+
+
+可结合的`std::thread`析构会终止程序。C++委员会认为销毁可结合的线程的后果非常严重：
+
+- **隐式`join`** 。这种情况下，`std::thread`的析构函数将等待其底层的异步执行线程完成。这听起来是合理的，但是可能会导致难以追踪的异常表现。比如，如果`conditonAreStatisfied()`已经返回了`false`，`doWork`继续等待过滤器应用于所有值就很违反直觉。
+
+- **隐式`detach`** 。这种情况下，`std::thread`析构函数会分离`std::thread`与其底层的线程。底层线程继续运行。听起来比`join`的方式好，但是可能导致更严重的调试问题。比如，在`doWork`中，`goodVals`是通过引用捕获的局部变量。它也被*lambda*修改（通过调用`push_back`）。假定，*lambda*异步执行时，`conditionsAreSatisfied()`返回`false`。这时，`doWork`返回，同时局部变量（包括`goodVals`）被销毁。栈被弹出，并在`doWork`的调用点继续执行线程。
+
+  调用点之后的语句有时会进行其他函数调用，并且至少一个这样的调用可能会占用曾经被`doWork`使用的栈位置。我们调用那么一个函数`f`。当`f`运行时，`doWork`启动的*lambda*仍在继续异步运行。该*lambda*可能在栈内存上调用`push_back`，该内存曾属于`goodVals`，但是现在是`f`的栈内存的某个位置。这意味着对`f`来说，内存被自动修改了！想象一下调试的时候“乐趣”吧。
+
+
+
+所以要自行保证`std::thread`在离开作用域时是不可结合的。**最通用的办法就是将该操作放入局部对象的析构函数中：
+
+```cpp
+class ThreadRAII {
+public:
+    enum class DtorAction { join, detach };     //enum class的信息见条款10
+    
+    ThreadRAII(std::thread&& t, DtorAction a)   //析构函数中对t实行a动作
+    : action(a), t(std::move(t)) {}
+
+    ~ThreadRAII()
+    {                                           //可结合性测试见下
+        if (t.joinable()) {
+            if (action == DtorAction::join) {
+                t.join();
+            } else {
+                t.detach();
+            }
+        }
+    }
+
+    std::thread& get() { return t; }            //见下
+
+private:
+    DtorAction action;
+    std::thread t;
+};
+```
+
+该构造器只支持`std::thread`右值，因此要移动进来(因为`std::thread`不可以复制)。
+
+
+
+![image-20220311103421868](dependence/image-20220311103421868.png)
+
+
+
+# 条款38 关注不同线程句柄的析构行为
+
+因为与被调用者关联的对象和与调用者关联的对象都不适合存储**被调用者的结果**，所以必须存储在两者之外的**共享状态**。通常是基于堆的对象。
+
+![image-20220311104302770](dependence/image-20220311104302770.png)
+
+共享状态的存在非常重要，因为*future*的析构函数取决于与*future*关联的共享状态：
+
+- **引用了共享状态——使用`std::async`启动的未延迟任务建立的那个——的最后一个future的析构函数会阻塞住**，直到任务完成。本质上，这种*future*的析构函数对执行异步任务的线程执行了隐式的`join`。
+- **其他所有future的析构函数简单地销毁future对象**。对于异步执行的任务，就像对底层的线程执行`detach`。对于延迟任务来说如果这是最后一个*future*，意味着这个延迟任务永远不会执行了。
+
+
+
+![image-20220311110504695](dependence/image-20220311110504695.png)
+
+
+
+# 条款39 对于一次性事件通信考虑使用`void`的*futures*
+
+没看懂...
+
+
+
+# 条款40 对于并发使用`std::atomic`，对于特殊内存使用`volatile`
+
+- 一旦`std::atomic`对象被构建，其上的操作表现的像操作是在互斥锁保护的关键区内。
+
+```cpp
+std::atomic<int> ai(0);         //初始化ai为0
+ai = 10;                        //原子性地设置ai为10
+std::cout << ai;                //原子性地读取ai的值
+++ai;                           //原子性地递增ai到11
+--ai;                           //原子性地递减ai到10
+```
+
+
+
+> volatile 是告诉编译器**不要对这块内存执行任何优化**。
+
+```cpp
+volatile int x;
+auto y = x;                             //读x
+y = x;                                  //再次读x（不会被优化掉）
+
+x = 10;                                 //写x（不会被优化掉）
+x = 20;                                 //再次写x
+```
+
+
+
+---
+
+`std::atomic`的拷贝和移动操作都被禁止了。所以要使用`std::atomic`的`load`和`store`成员函数。`load`原子性的读取，`store`原子性的写入。
+
+```cpp
+std::atomic<int> x(10);
+
+std::atomic<int> y(x.load());           //读x
+y.store(x.load());                      //再次读x
+```
+
+
+
+![image-20220312145056650](dependence/image-20220312145056650.png)
+
+
+
+# 条款41 对于移动成本低且总是被拷贝的可拷贝形参，考虑按值传递
+
+```cpp
+class Widget {
+public:
+    void addName(std::string newName) {         //接受左值或右值；移动它
+        names.push_back(std::move(newName));
+    }
+    …
+}
+```
+
+由于是值传递，所以生成了一个副本，移动它没有后果。
+
+在C++98中，无论调用者传递什么，形参`addName`都是拷贝出来，但是在C++11中，只有在左值实参时，才是拷贝来的；对于右值，使用移动构造。
+
+
+
+- 按值传递应该仅考虑那些**移动开销小**的形参。当移动的开下较低，额外的一次移动才能被开发者接受。
+- 应该只对**总是被拷贝**的形参考虑按值传递。
+
+
+
+使用通过赋值拷贝一个形参进行按值传递的函数的额外开销，取决于传递的类型，左值和右值的比例，这个类型是否需要动态分配内存，以及，如果需要分配内存的话，赋值操作符的具体实现，还有赋值目标占的内存至少要跟赋值源占的内存一样大。对于`std::string`来说，开销还取决于实现是否使用了小字符串优化(SSO)，如果是，那么要赋值的值是否匹配SSO缓冲区。
+
+
+
+# 条款42 考虑使用置入代替插入
+
+如果有一个存放`std::string`的容器，通过插入函数添加新元素的时候，传入的元素类型应该是`std::string`：
+
+```cpp
+std::vector<std::string> vs;        //std::string的容器
+vs.push_back("xyzzy");              //添加字符串字面量
+```
+
+此处试图给容器添加一个*字符串字面量*，并不是一个`std::string`
+
+在
+
+```cpp
+vs.push_back("xyzzy");
+```
+
+中，编译器看到实参类型(`const char[6]`)和形参类型(`std::string`的引用)之间不匹配。所以从字符串字面量创建一个`std::string`类型的临时对象消除不匹配(类似这样)：
+
+```cpp
+vs.push_back(std::string("xyzzy")); //创建临时std::string，把它传给push_back
+```
+
+1. 一个`std::string`的临时对象从字面量“`xyzzy`”被创建。这个对象没有名字，我们可以称为`temp`。`temp`的构造是第一次`std::string`构造。因为是临时变量，所以`temp`是右值。
+2. `temp`被传递给`push_back`的右值重载函数，绑定到右值引用形参`x`。在`std::vector`的内存中一个`x`的副本被创建。这次构造——也是第二次构造——在`std::vector`内部真正创建一个对象。（将`x`副本拷贝到`std::vector`内部的构造函数是移动构造函数，因为`x`在它被拷贝前被转换为一个右值，成为右值引用。
+3. 在`push_back`返回之后，`temp`立刻被销毁，调用了一次`std::string`的析构函数。
+
+
+
+> 使用`emplace_back`函数
+
+完美转发，没有临时变量产生，而是直接在容器内构造一个对象：
+
+```cpp
+vs.emplace_back("xyzzy");           //直接用“xyzzy”在vs内构造std::string
+```
+
+插入函数接收**对象**去插入；而置入函数接收**对象的构造函数接受的实参**去插入：
+
+置入函数支持如下的操作：
+
+```cpp
+vs.emplace_back(50, 'x');           //插入由50个“x”组成的一个std::string
+```
+
+---
+
+满足下列条件时，置入操作会优于插入操作：
+
+- 值是通过构造函数添加到容器，而不是直接赋值。
+- 传递的实参类型与容器的初始化类型不同。因为容器不需要构造临时对象。
+- 容器不拒绝重复项作为新值。如果值已经存在，那么置入操作取消，创建的节点被销毁，意味着构造和析构的开销被浪费了。
+
+
+
+在C++中：
+
+```cpp
+std::regex r1 = nullptr;                 //错误！不能编译
+std::regex r2(nullptr);                  //可以编译
+```
+
+使用等号的(r1)初始化是**拷贝初始化**，使用小括号(r2)初始化是**直接初始化**。
+
+```cpp
+using regex   = basic_regex<char>;
+
+explicit basic_regex(const char* ptr,flag_type flags); //定义 (1)explicit构造函数
+
+basic_regex(const basic_regex& right); //定义 (2)拷贝构造函数
+```
+
+**拷贝初始化不被允许使用`explicit`构造函数**（即没法调用相应类的`explicit`拷贝构造函数）：对于`r1`,使用赋值运算符定义变量时将调用拷贝构造函数`定义 (2)`，其形参类型为`basic_regex&`。因此`nullptr`首先需要隐式装换为`basic_regex`。而根据`定义 (1)`中的`explicit`，这样的隐式转换不被允许，从而产生编译时期的报错。**对于直接初始化，编译器会自动选择与提供的参数最匹配的构造函数**，即`定义 (1)`。就是初始化`r1`不能编译，而初始化`r2`可以编译的原因。
+
+
+
+> 拷贝初始化不允许使用explicit构造函数
+
+![image-20220313111352751](dependence/image-20220313111352751.png)
