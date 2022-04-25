@@ -4,12 +4,13 @@
 
 int main(void){
 
-    char buf[100];
-    int fd = open("test.c",O_RDONLY);
-    read(fd,buf,2);
-    printf("%s",buf);
-    read(fd,buf,2);
-    printf("%s",buf);
+    pid_t pid;
+    pid = fork();
+    if(pid == 0){
+        puts("child\n");
+        return 0;
+    }else puts("father");
+    puts("end.....");
 
     return 0;
 }
