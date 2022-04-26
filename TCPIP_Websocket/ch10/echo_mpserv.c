@@ -9,8 +9,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <stdbool.h>
-
 #define BUF_SIZE 30
 void error_handling(char* message);
 void read_childproc(int sig);
@@ -26,7 +24,7 @@ int main(int argc, char** argv) {
     char buf[BUF_SIZE];
     if (argc != 2) {
         printf("Usage : %s <port>\n", argv[0]);
-        exit(0);
+        exit(0); 
     }
 
     act.sa_handler = read_childproc;
@@ -45,9 +43,9 @@ int main(int argc, char** argv) {
     if (listen(serv_sock, 5) == -1)
         error_handling("listen() error!");
 
-    while (true) {
+    while (1) {
         addr_sz = sizeof(clnt_addr);
-        clnt_sock = accept(&serv_sock, (struct sockaddr*)&serv_sock, &addr_sz);
+        clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_addr, &addr_sz);
         if (clnt_sock == -1)
             continue;
         else
@@ -63,7 +61,7 @@ int main(int argc, char** argv) {
                 但是并不意味着实际传输数据中不需要服务器套接字 
                 在实际传输过程中，还是需要陷入内核，通过OS协调服务器套接字和客户端套接字来完成传输！*/
             close(serv_sock);
-            while ((str_len = read(clnt_sock, buf, BUF_SIZE)))
+            while ((str_len = read(clnt_sock, buf, BUF_SIZE)) != 0)
                 write(clnt_sock, buf, str_len);
 
             close(clnt_sock);
