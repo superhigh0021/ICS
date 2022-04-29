@@ -16,6 +16,7 @@ int main(int argc, char *argv[])
         return -1;
     }
     //main函数将等待 ID 保存在 t_id 变量中的线程终止
+    //! thr_ret保存了线程的返回值
     if (pthread_join(t_id, &thr_ret) != 0)
     {
         puts("pthread_join() error");

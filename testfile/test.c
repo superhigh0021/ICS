@@ -10,6 +10,6 @@ int main(){
     FILE * fp = fopen("test.txt","a");
     fwrite(buf,5,1,fp);
 
-    //fclose(fp);
+    fclose(fp);
     return 0;
 }

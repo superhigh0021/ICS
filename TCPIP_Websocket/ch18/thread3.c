@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <pthread.h>
+#include<unistd.h>
+
 void *thread_summation(void *arg);
 int sum = 0;
 
