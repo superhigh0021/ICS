@@ -1,6 +1,6 @@
-#include <stdio.h>
-#include <pthread.h>
-#include <semaphore.h>
+#include<stdio.h>
+#include<pthread.h>
+#include<semaphore.h>
 
 void *read(void *arg);
 void *accu(void *arg);
@@ -8,8 +8,7 @@ static sem_t sem_one;
 static sem_t sem_two;
 static int num;
 
-int main(int argc, char const *argv[])
-{
+int main(int argc, char**argv){
     pthread_t id_t1, id_t2;
     sem_init(&sem_one, 0, 0);
     sem_init(&sem_two, 0, 1);
@@ -25,12 +24,10 @@ int main(int argc, char const *argv[])
     return 0;
 }
 
-void *read(void *arg)
-{
+void *read(void *arg){
     int i;
-    for (i = 0; i < 5; i++)
-    {
-        fputs("Input num: ", stdout);
+    for(i = 0; i < 5; ++i){
+        fputs("Input num: ",stdout);
 
         sem_wait(&sem_two);
         scanf("%d", &num);
@@ -38,13 +35,12 @@ void *read(void *arg)
     }
     return NULL;
 }
-void *accu(void *arg)
-{
+
+void *accu(void *arg){
     int sum = 0, i;
-    for (i = 0; i < 5; i++)
-    {
+    for(i = 0; i < 5; ++i){
         sem_wait(&sem_one);
-        sum += num;
+        sum+=num;
         sem_post(&sem_two);
     }
     printf("Result: %d \n", sum);
