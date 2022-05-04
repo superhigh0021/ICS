@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <string.h>
 
-#define BUFFER_SIZE 1024
+#define BUFFER_SIZE 8192
 
 int main( int argc, char* argv[] )
 {
