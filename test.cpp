@@ -1,19 +1,25 @@
-#include <future>
-#include <iostream>
-#include <vector>
+//widget.cpp
+#include"widget.h"
+#include<vector>
+#include<iostream>
+#include<string>
+#include<set>
+using namespace std;
 
-class String {
-public:
-    explicit String(const char* ptr){
-        std::cout<<"explicit!"<<std::endl;
+int main(void){
+    set<char> follow[10];
+    for(auto i:follow){
+        for(auto j : i)
+            cout<<j<<endl;
     }
+}
 
-private:
+struct Widget::Impl{
+    std::string name;
+    std::vector<double> data;
 };
 
-int main(void) {
-    String s=nullptr;
-    String ss(nullptr);
-
-    return 0;
-}
+Widget::Widget() = default;
+Widget::Widget(Widget&& rhs) = default;
+Widget::~Widget() = default;
+Widget& Widget::operator=(Widget&& rhs) = default;
