@@ -60,6 +60,7 @@ int main(int argc, char** argv) {
                 addr_sz = sizeof(clnt_addr);
                 clnt_sock = accept(serv_sock, (struct sockaddr*)&clnt_addr, &addr_sz);
                 setnonblockingmode(clnt_sock);
+                //! 边缘触发
                 event.events = EPOLLIN | EPOLLET;
                 event.data.fd = clnt_sock;
                 epoll_ctl(epfd, EPOLL_CTL_ADD, clnt_sock, &event);

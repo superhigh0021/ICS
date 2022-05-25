@@ -15,6 +15,7 @@
 #define MAX_EVENT_NUMBER 1024
 #define BUFFER_SIZE 10
 
+// 将文件描述符设置为非阻塞的
 int setnonblocking( int fd )
 {
     int old_option = fcntl( fd, F_GETFL );
@@ -23,6 +24,8 @@ int setnonblocking( int fd )
     return old_option;
 }
 
+/*  将文件描述符 fd 上的 EPOLLIN 注册到 epollfd 指示的
+    epoll 内核事件表中，参数 enable_et指定是否对 fd 启用 ET 模式*/
 void addfd( int epollfd, int fd, bool enable_et )
 {
     epoll_event event;
@@ -51,6 +54,8 @@ void lt( epoll_event* events, int number, int epollfd, int listenfd )
         }
         else if ( events[i].events & EPOLLIN )
         {
+            //! 等待读事件
+            //! socket 读缓存中还有位独处的数据，这段代码就会被触发
             printf( "event trigger once\n" );
             memset( buf, '\0', BUFFER_SIZE );
             int ret = recv( sockfd, buf, BUFFER_SIZE-1, 0 );
@@ -83,6 +88,7 @@ void et( epoll_event* events, int number, int epollfd, int listenfd )
         }
         else if ( events[i].events & EPOLLIN )
         {
+            //! 这段代码不会被重复触发。所以需要用循环读取数据，确保全部读出来
             printf( "event trigger once\n" );
             while( 1 )
             {
@@ -144,7 +150,7 @@ int main( int argc, char* argv[] )
     epoll_event events[ MAX_EVENT_NUMBER ];
     int epollfd = epoll_create( 5 );
     assert( epollfd != -1 );
-    addfd( epollfd, listenfd, true );
+    addfd( epollfd, listenfd, false );
 
     while( 1 )
     {
