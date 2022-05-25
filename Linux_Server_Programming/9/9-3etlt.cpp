@@ -150,7 +150,7 @@ int main( int argc, char* argv[] )
     epoll_event events[ MAX_EVENT_NUMBER ];
     int epollfd = epoll_create( 5 );
     assert( epollfd != -1 );
-    addfd( epollfd, listenfd, false );
+    addfd( epollfd, listenfd, true );
 
     while( 1 )
     {
