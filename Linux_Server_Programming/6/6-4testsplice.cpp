@@ -45,11 +45,14 @@ int main( int argc, char* argv[] )
     {
         int pipefd[2];
         assert( ret != -1 );
-        ret = pipe( pipefd );
+
+        ret = pipe( pipefd );//创建管道
         ret = splice( connfd, NULL, pipefd[1], NULL, 32768, SPLICE_F_MORE | SPLICE_F_MOVE ); 
         assert( ret != -1 );
+
         ret = splice( pipefd[0], NULL, connfd, NULL, 32768, SPLICE_F_MORE | SPLICE_F_MOVE );
         assert( ret != -1 );
+
         close( connfd );
     }
 

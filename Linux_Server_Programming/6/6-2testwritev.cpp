@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
+#include<sys/uio.h>
 
 #define BUFFER_SIZE 1024
 static const char* status_line[2] = { "200 OK", "500 Internal server error" };
