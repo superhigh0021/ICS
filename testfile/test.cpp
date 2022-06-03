@@ -44,5 +44,8 @@ int main() {
     unordered_set<String,op> s(42);
     s.insert(ss);
 
+    vector<bool>b{true,false};
+    b[1] = true;
+
     return 0;
 }
