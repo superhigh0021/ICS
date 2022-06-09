@@ -1,7 +1,13 @@
 #include<stdio.h>
 
-int main(void ){
-    printf("Hello World!\n");
+void print(char* buf)
+{
+	printf("%s", buf);
+}
 
-    return 0;
+int main()
+{
+	const void* buf = "hell0";
+	void* buf1 = (void*)(buf);
+	print(buf1);
 }
