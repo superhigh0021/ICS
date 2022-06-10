@@ -1,10 +1,25 @@
 #include <iostream>
 #include <unordered_map>
-#include<vector>
+#include <vector>
 using namespace std;
 
+class A {
+public:
+    virtual void print() {
+        cout << "base" << endl;
+    }
+};
+
+class B : public A {
+public:
+    void print() {
+        cout << "derived" << endl;
+    }
+};
+
 int main(void) {
-    vector<int>nums{0,1,2,3,4,5};
-    auto i = nums.begin();
-    cout<<*(i+2)<<endl;
+    A a;
+    B b;
+    A& aa = b;
+    aa.print();
 }
