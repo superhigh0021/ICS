@@ -1,1 +1,0 @@
-        std::cout << lowerBound[i] << std::endl;

@@ -61,6 +61,7 @@ int main( int argc, char* argv[] )
 
         if( fds[1].revents & POLLRDHUP )
         {
+            //挂起事件
             printf( "server close the connection\n" );
             break;
         }
@@ -73,6 +74,8 @@ int main( int argc, char* argv[] )
 
         if( fds[0].revents & POLLIN )
         {
+            //先从标准输入往管道里写，然后再从管道里读取到套接字sockfd
+            //! splice() 零拷贝
             ret = splice( 0, NULL, pipefd[1], NULL, 32768, SPLICE_F_MORE | SPLICE_F_MOVE );
             ret = splice( pipefd[0], NULL, sockfd, NULL, 32768, SPLICE_F_MORE | SPLICE_F_MOVE );
         }
