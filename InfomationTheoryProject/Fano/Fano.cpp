@@ -151,7 +151,7 @@ void Fano::calculateEfficiency() {
 }
 
 void unitTest() {
-    Fano f("122444488888888");
+    Fano f("asfafagd");
     f.showEncodeTable();
     f.Encode();
     f.Decode();
