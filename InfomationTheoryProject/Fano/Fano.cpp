@@ -88,8 +88,10 @@ void Fano::group(int lo, int hi) {
         double frontSum = 0, backSum = 0;
         for (int a = lo; a <= i; ++a)
             frontSum += this->vec[a].pro;
+
         for (int b = i + 1; b <= hi; ++b)
             backSum += this->vec[b].pro;
+
         if (abs(frontSum - backSum) < cmpFlag) {
             cmpFlag = abs(frontSum - backSum);
             pivot = i;
@@ -151,7 +153,7 @@ void Fano::calculateEfficiency() {
 }
 
 void unitTest() {
-    Fano f("asfafagd");
+    Fano f("aaksudhaskaaaaaaaaaaaaaaaaaaaaaaa");
     f.showEncodeTable();
     f.Encode();
     f.Decode();

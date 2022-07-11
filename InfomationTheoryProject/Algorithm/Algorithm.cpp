@@ -20,7 +20,8 @@ private:
 public:
     Algorithm() {}
 
-    Algorithm(std::string&& _str) : sourceString(std::move(_str)) {
+    Algorithm(std::string&& _str)
+        : sourceString(std::move(_str)) {
         init();
     }
 
@@ -49,8 +50,7 @@ void Algorithm::init() {
                 ++temp_vec[j].second;
                 flag = true;
                 break;
-            } else
-                continue;
+            }
         }
         if (!flag) temp_vec.emplace_back(this->sourceString[i], 1);
     }
@@ -137,7 +137,7 @@ void Algorithm::calculateEfficiency() {
 }
 
 void unitTest() {
-    Algorithm al{"122444488888888"};
+    Algorithm al{"2020210599ljy"};
     al.Encode();
     al.Decode();
     al.calculateEfficiency();

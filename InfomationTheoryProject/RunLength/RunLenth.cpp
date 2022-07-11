@@ -5,8 +5,8 @@
 #include <unordered_map>
 #include <vector>
 
-#define M 5 //能表示出出现的字符的最小二进制位数
-#define N 6 //能表示出出现最多次数的最小二进制位数
+#define M 2 //能表示出出现的字符的最小二进制位数
+#define N 3 //能表示出出现最多次数的最小二进制位数
 
 class RunLength {
 private:
@@ -46,7 +46,7 @@ void RunLength::computeRule() {
 
     // for test
     for (auto i : dict)
-        std::cout << "i.first = " << i.first << "i.second = " << i.second << std::endl;
+        std::cout << "ch =  " << i.first << " encode string is " << i.second << std::endl;
     //  for (auto i : decodeDict)
     //      std::cout << "i.first = " << i.first << "i.second = " << i.second << std::endl;
 }
@@ -85,7 +85,7 @@ void RunLength::Decode() {
 }
 
 void unitTest() {
-    RunLength rl("this");
+    RunLength rl("abbccccdddddddd");
     rl.Encode();
     rl.Decode();
 }

@@ -27,7 +27,7 @@ struct HuffNode {
 
 class HuffmanTree {
 private:
-    int Huff_ori_size;
+    int Huff_ori_size;  //指示源字符串各不相同字符串的个数，用于辅助构建霍夫曼树
     std::vector<HuffNode> Huff;
     std::string sourceString;
     std::string HuffCodeResult; //编码结果
@@ -73,10 +73,6 @@ void HuffmanTree::buildHuffTree() {
         // std::cout << "Huff.back().rightChild = " << Huff.back().rightChild << std::endl;
     }
 
-    //按照从大到小的排序，这样构建树的时候只需要 pop_back 即可
-    // auto sortFunc = [](const HuffNode& v1, const HuffNode& v2) { return v1.weight > v2.weight; };
-    // sort(Huff.begin(), Huff.end(), sortFunc);
-
     // for test
     //  for(auto i : Huff)
     //      std::cout<<i.ch<<' '<<i.weight<<std::endl;
@@ -101,7 +97,7 @@ void HuffmanTree::buildHuffTree() {
     }
 }
 
-//寻找最小的两个节点(前提：parent 为 0)
+//寻找最小的两个节点(前提：parent 为 -1)
 std::pair<int, int> HuffmanTree::Select() {
     //可优化为动态规划
     int min1 = INT_MAX, min2 = INT_MAX;
@@ -135,7 +131,7 @@ void HuffmanTree::Encode() {
     makeEncodeTable();
     for (auto i : sourceString)
         this->HuffCodeResult += this->encodeTable[i];
-    std::cout << this->HuffCodeResult << std::endl;
+    std::cout <<"the encode test = "<< this->HuffCodeResult << std::endl;
 }
 
 //构建编码表
@@ -177,15 +173,15 @@ void HuffmanTree::Decode() {
 
         int j = 0;
         while (Huff[curParent].leftChild != -1 && Huff[curParent].rightChild != -1) {
-            std::cout << "curParent = " << curParent << "leftChild = " << Huff[curParent].leftChild
-                      << "rightChild = " << Huff[curParent].rightChild << std::endl;
+            // std::cout << "curParent = " << curParent << "leftChild = " << Huff[curParent].leftChild
+            //           << "rightChild = " << Huff[curParent].rightChild << std::endl;
 
             if (HuffCodeResult[i + j] == '0') {
-                std::cout << "left" << std::endl;
+                //std::cout << "left" << std::endl;
 
                 curParent = Huff[curParent].leftChild;
             } else {
-                std::cout << "right is " << std::endl;
+                //std::cout << "right is " << std::endl;
 
                 curParent = Huff[curParent].rightChild;
             }
@@ -194,7 +190,7 @@ void HuffmanTree::Decode() {
         i += j - 1;
         this->decodeText += this->Huff[curParent].ch;
     }
-    std::cout << this->decodeText << std::endl;
+    std::cout <<"the decode text = "<< this->decodeText << std::endl;
 }
 
 //计算编码效率
@@ -228,10 +224,10 @@ double HuffmanTree::calculateEfficiency() {
 HuffmanTree::~HuffmanTree() = default;
 
 void unit_test() {
-    HuffmanTree h("122444488888888999999999");
+    HuffmanTree h("aaksudhaskaaaaaaaaaaaaaaaaaaaaaaa");
     h.Encode();
     h.Decode();
-    std::cout << h.calculateEfficiency() << std::endl;
+    std::cout <<"the encode efficiency is "<< h.calculateEfficiency() << std::endl;
 }
 
 int main(void) {
